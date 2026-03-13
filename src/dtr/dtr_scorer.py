@@ -94,6 +94,67 @@ class DTRScorer:
             "deep_threshold": self.deep_threshold,
         }
 
+    def compute_dtr_chunked(
+        self,
+        input_ids: torch.Tensor,
+        generated_token_start: int,
+        generated_token_end: Optional[int] = None,
+        chunk_size: int = 150,
+    ) -> dict:
+        """
+        Compute DTR by processing tokens in chunks to save memory.
+        Returns JSD matrix for the last ~100 tokens for visualization.
+
+        Args:
+            input_ids: [1, T_total] full sequence
+            generated_token_start: index where generated tokens begin
+            generated_token_end: index where generated tokens end (exclusive)
+            chunk_size: how many tokens to process per forward pass
+
+        Returns:
+            dict with:
+                - dtr: overall DTR across all tokens
+                - settling_depths: [T_gen] all settling depths
+                - jsd_matrix: [~100, L] JSD for last ~100 tokens (for visualization)
+                - is_deep: [T_gen] deep-thinking classification
+        """
+        if generated_token_end is None:
+            generated_token_end = input_ids.shape[1]
+
+        total_gen_tokens = generated_token_end - generated_token_start
+        last_100_start = max(generated_token_start, generated_token_end - 100)
+
+        all_settling_depths = []
+        jsd_last_100 = None
+
+        # Process in chunks
+        for chunk_start in range(generated_token_start, generated_token_end, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, generated_token_end)
+            result = self.compute_dtr(input_ids, chunk_start, chunk_end)
+            all_settling_depths.append(result["settling_depths"])
+
+            # Save JSD for last 100 tokens only
+            if chunk_start >= last_100_start:
+                if jsd_last_100 is None:
+                    jsd_last_100 = result["jsd_matrix"]
+                else:
+                    jsd_last_100 = torch.cat(
+                        [jsd_last_100, result["jsd_matrix"]], dim=0
+                    )
+
+        # Concatenate all settling depths
+        all_depths = torch.cat(all_settling_depths, dim=0)
+        is_deep = all_depths >= self.deep_threshold
+        overall_dtr = is_deep.float().mean().item()
+
+        return {
+            "dtr": overall_dtr,
+            "settling_depths": all_depths,
+            "jsd_matrix": jsd_last_100,  # JSD for last ~100 tokens for visualization
+            "is_deep": is_deep,
+            "deep_threshold": self.deep_threshold,
+        }
+
     def compute_prefix_dtr(
         self,
         prompt_ids: torch.Tensor,

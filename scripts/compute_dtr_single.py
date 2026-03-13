@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--gamma", type=float, default=0.5)
     parser.add_argument("--rho", type=float, default=0.85)
     parser.add_argument("--prefix-length", type=int, default=50)
+    parser.add_argument("--chunk-size", type=int, default=150)
     args = parser.parse_args()
 
     print("Loading model...")
@@ -61,12 +62,20 @@ def main():
 
     # Compute DTR on a subset of generated tokens (memory constraint)
     print(f"\n{'='*60}")
-    analysis_end = min(prompt_len + args.analyze_tokens, output.shape[1])
-    analysis_tokens = analysis_end - prompt_len
-    print(f"Computing DTR on first {analysis_tokens}/{total_gen} generated tokens...")
+    
     t0 = time.time()
-    result = scorer.compute_dtr(output, generated_token_start=prompt_len,
-                                generated_token_end=analysis_end)
+    if args.chunk_size == 0:
+        analysis_end = min(prompt_len + args.analyze_tokens, output.shape[1])
+        analysis_tokens = analysis_end - prompt_len
+        print(f"Computing DTR on first {analysis_tokens}/{total_gen} generated tokens...")
+        result = scorer.compute_dtr(output, generated_token_start=prompt_len,
+                                    generated_token_end=analysis_end)
+    else:
+        print("Computing full DTR in chunks...")
+        analysis_tokens = total_gen
+        result = scorer.compute_dtr_chunked(output, generated_token_start=prompt_len,
+                                        generated_token_end=prompt_len + total_gen,
+                                        chunk_size=args.chunk_size)
     print(f"  DTR (first {analysis_tokens}): {result['dtr']:.4f}")
     print(f"  Settling depth stats:")
     depths = result["settling_depths"].float()
@@ -111,7 +120,7 @@ def main():
         im = axes[1].imshow(jsd_mat.T, aspect="auto", cmap="viridis", origin="lower")
         axes[1].set_xlabel("Generated token position")
         axes[1].set_ylabel("Layer")
-        axes[1].set_title("JSD(final || layer)")
+        axes[1].set_title("JSD(final || layer) for last ~100 tokens")
         plt.colorbar(im, ax=axes[1])
 
         os.makedirs("outputs/dtr_single", exist_ok=True)
