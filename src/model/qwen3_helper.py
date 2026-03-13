@@ -1,14 +1,12 @@
 """
 Model helper for Qwen3-4B-Thinking-2507.
-Loads the model, wraps decoder layers for hidden state capture,
-and provides methods for logit lens analysis.
+Uses the native `output_hidden_states=True` API instead of layer wrappers,
+which is both faster and avoids compatibility issues with model internals.
 """
 
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from typing import Dict, Optional
-
-from src.model.wrappers import ResidualStreamCapture
+from typing import Optional, Tuple
 
 
 class Qwen3Helper:
@@ -35,47 +33,59 @@ class Qwen3Helper:
         self.num_layers = len(self.model.model.layers)
         self.norm = self.model.model.norm
         self.lm_head = self.model.lm_head
-
-        # Wrap each decoder layer
-        for i in range(self.num_layers):
-            self.model.model.layers[i] = ResidualStreamCapture(
-                self.model.model.layers[i]
-            )
-        print(f"Wrapped {self.num_layers} layers for hidden state capture.")
+        print(f"Model loaded: {self.num_layers} layers, device={self.device}")
 
     def get_layer_hidden_states(
         self, input_ids: torch.Tensor
-    ) -> Dict[int, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, ...]:
         """
-        Run a single forward pass and return hidden states from every layer.
+        Run a single forward pass and return per-layer hidden states.
+        Uses the native output_hidden_states=True API (no wrappers needed).
 
         Args:
-            input_ids: shape [1, T] on self.device
+            input_ids: shape [B, T] on self.device
 
         Returns:
-            dict mapping layer index -> hidden state tensor [1, T, hidden_dim]
+            Tuple of num_layers tensors, each [B, T, hidden_dim].
+            Index 0 = output of decoder layer 0 (pre-norm),
+            ...
+            Index N-2 = output of decoder layer N-2 (pre-norm),
+            Index N-1 = output of decoder layer N-1 (POST-norm, already normed).
+
+        Note:
+            HF transformers returns (num_layers + 1) hidden states:
+              [0]       = embedding output (input to layer 0)
+              [1]       = output of layer 0 = input to layer 1
+              ...
+              [N-1]     = output of layer N-2 = input to layer N-1
+              [N]       = output of layer N-1 AFTER final RMSNorm
+            We strip the embedding [0] so indices align with layer numbers.
+            The LAST entry is post-norm — callers must handle this.
         """
-        self.reset_all()
         with torch.no_grad():
-            self.model(input_ids)
+            outputs = self.model(input_ids, output_hidden_states=True)
+        all_hs = outputs.hidden_states
+        # Strip embedding [0], keep layer outputs + post-norm final
+        return all_hs[1:]  # tuple of num_layers tensors
 
-        hidden_states = {}
-        for i, layer in enumerate(self.model.model.layers):
-            hidden_states[i] = layer.captured_hidden_state
-        return hidden_states
-
-    def project_to_vocab(self, hidden_state: torch.Tensor) -> torch.Tensor:
+    def project_to_vocab(
+        self, hidden_state: torch.Tensor, already_normed: bool = False
+    ) -> torch.Tensor:
         """
-        Apply final norm + lm_head + softmax to get probability distribution.
+        Project hidden state to vocabulary probability distribution.
 
         Args:
             hidden_state: [batch, seq_len, hidden_dim]
+            already_normed: if True, skip the final RMSNorm (for post-norm states)
 
         Returns:
             probs: [batch, seq_len, vocab_size] in float32
         """
-        normed = self.norm(hidden_state)
-        logits = self.lm_head(normed).float()  # float32 for numerical stability
+        if already_normed:
+            logits = self.lm_head(hidden_state).float()
+        else:
+            normed = self.norm(hidden_state)
+            logits = self.lm_head(normed).float()
         return torch.softmax(logits, dim=-1)
 
     def tokenize(self, text: str) -> torch.Tensor:
@@ -91,8 +101,3 @@ class Qwen3Helper:
         )
         inputs = self.tokenizer(text, return_tensors="pt")
         return inputs.input_ids.to(self.device)
-
-    def reset_all(self):
-        """Clear all captured hidden states."""
-        for layer in self.model.model.layers:
-            layer.reset()

@@ -21,7 +21,7 @@ class DTRScorer:
     ):
         """
         Args:
-            model_helper: initialized Qwen3Helper with wrapped layers
+            model_helper: initialized Qwen3Helper
             gamma: settling threshold for JSD (paper default: 0.5)
             rho: depth fraction for deep-thinking regime (paper default: 0.85)
         """
@@ -60,27 +60,30 @@ class DTRScorer:
         token_positions = slice(generated_token_start, generated_token_end)
         T_gen = generated_token_end - generated_token_start
 
-        # Step 1: Forward pass to capture all layer hidden states
-        layer_hidden_states = self.helper.get_layer_hidden_states(input_ids)
+        # Use batch mode for short sequences, sequential for long
+        batch_layers = T_gen <= 100
 
-        # Step 2: Compute JSD between each layer and final layer
+        # Single forward pass with output_hidden_states=True
+        hidden_states = self.helper.get_layer_hidden_states(input_ids)
+
+        # Compute JSD between each layer and final layer
         jsd_tensor = compute_jsd_per_layer(
-            layer_hidden_states,
+            hidden_states,
             self.helper.norm,
             self.helper.lm_head,
             token_positions=token_positions,
+            batch_layers=batch_layers,
         )
 
-        # Free hidden states
-        del layer_hidden_states
+        del hidden_states
 
-        # Step 3: Compute settling depth per token
+        # Compute settling depth per token
         settling_depths = compute_settling_depth(jsd_tensor, gamma=self.gamma)
 
-        # Step 4: Classify deep-thinking tokens
+        # Classify deep-thinking tokens
         is_deep = settling_depths >= self.deep_threshold
 
-        # Step 5: Compute DTR
+        # Compute DTR
         dtr = is_deep.float().mean().item()
 
         return {

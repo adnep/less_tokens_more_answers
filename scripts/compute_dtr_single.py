@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import torch
 import argparse
+import time
 
 from src.model.qwen3_helper import Qwen3Helper
 from src.dtr.dtr_scorer import DTRScorer
@@ -57,6 +58,7 @@ def main():
     # Compute full DTR
     print(f"\n{'='*60}")
     print("Computing DTR on full generation...")
+    t0 = time.time()
     result = scorer.compute_dtr(output, generated_token_start=prompt_len)
     print(f"  DTR (full): {result['dtr']:.4f}")
     print(f"  Settling depth stats:")
@@ -66,6 +68,7 @@ def main():
     print(f"    Min:    {depths.min():.0f}")
     print(f"    Max:    {depths.max():.0f}")
     print(f"  Deep-thinking tokens: {result['is_deep'].sum().item()}/{total_gen}")
+    print(f"  DTR computation took {time.time() - t0:.2f}s")
 
     # Compute prefix DTR
     print(f"\nComputing prefix DTR ({args.prefix_length} tokens)...")
@@ -76,6 +79,8 @@ def main():
 
     # Save settling depth distribution
     try:
+        import matplotlib
+        matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
