@@ -19,8 +19,11 @@ def main():
     parser = argparse.ArgumentParser(description="Compute DTR for a single generation")
     parser.add_argument("--model", default="Qwen/Qwen3-4B-Thinking-2507")
     parser.add_argument("--local-path", default=None)
-    parser.add_argument("--prompt", default="Find all integers n such that n^2 + 3n + 5 is divisible by 121.")
-    parser.add_argument("--max-tokens", type=int, default=2048)
+    parser.add_argument("--prompt", default="What is 2 + 3 * 9?")
+    parser.add_argument("--max-tokens", type=int, default=512,
+                        help="Max tokens to generate (memory limit on A40)")
+    parser.add_argument("--analyze-tokens", type=int, default=150,
+                        help="How many generated tokens to analyze with logit lens (memory limit)")
     parser.add_argument("--gamma", type=float, default=0.5)
     parser.add_argument("--rho", type=float, default=0.85)
     parser.add_argument("--prefix-length", type=int, default=50)
@@ -45,6 +48,7 @@ def main():
             temperature=0.6,
             top_p=0.95,
             do_sample=True,
+            use_cache=False,  # disable KV-cache to save memory during generation
         )
 
     generated_ids = output[:, prompt_len:]
@@ -55,20 +59,25 @@ def main():
     response = helper.tokenizer.decode(generated_ids[0], skip_special_tokens=False)
     print(f"\nResponse (first 500 chars):\n{response[:500]}...")
 
-    # Compute full DTR
+    # Compute DTR on a subset of generated tokens (memory constraint)
     print(f"\n{'='*60}")
-    print("Computing DTR on full generation...")
+    analysis_end = min(prompt_len + args.analyze_tokens, output.shape[1])
+    analysis_tokens = analysis_end - prompt_len
+    print(f"Computing DTR on first {analysis_tokens}/{total_gen} generated tokens...")
     t0 = time.time()
-    result = scorer.compute_dtr(output, generated_token_start=prompt_len)
-    print(f"  DTR (full): {result['dtr']:.4f}")
+    result = scorer.compute_dtr(output, generated_token_start=prompt_len,
+                                generated_token_end=analysis_end)
+    print(f"  DTR (first {analysis_tokens}): {result['dtr']:.4f}")
     print(f"  Settling depth stats:")
     depths = result["settling_depths"].float()
     print(f"    Mean:   {depths.mean():.1f}")
     print(f"    Median: {depths.median():.1f}")
     print(f"    Min:    {depths.min():.0f}")
     print(f"    Max:    {depths.max():.0f}")
-    print(f"  Deep-thinking tokens: {result['is_deep'].sum().item()}/{total_gen}")
+    print(f"  Deep-thinking tokens: {result['is_deep'].sum().item()}/{analysis_tokens}")
     print(f"  DTR computation took {time.time() - t0:.2f}s")
+    print(f"\n  Note: analyzed first {analysis_tokens} tokens. "
+          f"Full generation has {total_gen} tokens.")
 
     # Compute prefix DTR
     print(f"\nComputing prefix DTR ({args.prefix_length} tokens)...")
@@ -98,7 +107,7 @@ def main():
         axes[0].legend()
 
         # JSD matrix heatmap (first 100 tokens)
-        jsd_mat = result["jsd_matrix"][:min(100, total_gen), :].cpu().numpy()
+        jsd_mat = result["jsd_matrix"][:min(100, total_gen), :].cpu().detach().numpy()
         im = axes[1].imshow(jsd_mat.T, aspect="auto", cmap="viridis", origin="lower")
         axes[1].set_xlabel("Generated token position")
         axes[1].set_ylabel("Layer")
