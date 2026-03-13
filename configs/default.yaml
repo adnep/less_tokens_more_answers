@@ -1,0 +1,25 @@
+# DTR hyperparameters from "Think Deep, Not Just Long" (2602.13517)
+
+model:
+  name: "Qwen/Qwen3-4B-Thinking-2507"
+  dtype: "bfloat16"
+  num_layers: 36
+  hidden_dim: 2560
+  vocab_size: 151936
+
+dtr:
+  gamma: 0.5          # Settling threshold (JSD)
+  rho: 0.85           # Depth fraction for deep-thinking regime
+
+think_at_n:
+  n: 48               # Number of samples per problem
+  eta: 0.5            # Top fraction to keep (by DTR)
+  ell_prefix: 50      # Prefix length for early DTR estimation
+
+generation:
+  temperature: 0.6
+  top_p: 0.95
+  max_new_tokens: 32768
+
+benchmark:
+  name: "aime24"
