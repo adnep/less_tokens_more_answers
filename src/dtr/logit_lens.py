@@ -11,7 +11,7 @@ post-norm (need lm_head only). Both paths handle this correctly.
 """
 
 import torch
-from typing import Tuple
+from typing import Optional, Tuple
 
 from src.dtr.jsd import jsd_matrix
 
@@ -22,6 +22,7 @@ def compute_jsd_per_layer(
     lm_head: torch.nn.Module,
     token_positions: slice = slice(None),
     batch_layers: bool = True,
+    tuned_lens=None,
 ) -> torch.Tensor:
     """
     Compute JSD(final_layer || layer_l) for every layer and token position.
@@ -34,6 +35,9 @@ def compute_jsd_per_layer(
         token_positions: slice to select which token positions to analyze
         batch_layers: if True, stack all layers and process in one matmul.
             Faster for short sequences (<100 tokens). Set False for long sequences.
+        tuned_lens: optional TunedLens instance. If provided, applies learned
+            per-layer affine translators before lm_head instead of norm.
+            If None, falls back to standard logit lens (norm + lm_head).
 
     Returns:
         jsd_tensor: [T_selected, num_layers] JSD values
@@ -42,10 +46,10 @@ def compute_jsd_per_layer(
 
     if batch_layers:
         return _compute_batched(hidden_states, norm, lm_head,
-                                token_positions, num_layers)
+                                token_positions, num_layers, tuned_lens)
     else:
         return _compute_sequential(hidden_states, norm, lm_head,
-                                   token_positions, num_layers)
+                                   token_positions, num_layers, tuned_lens)
 
 
 def _get_final_probs(hidden_states, lm_head, token_positions):
@@ -57,69 +61,81 @@ def _get_final_probs(hidden_states, lm_head, token_positions):
     return final_probs
 
 
-def _compute_batched(hidden_states, norm, lm_head,
-                     token_positions, num_layers):
+def _project_hidden(hidden, layer_idx, norm, lm_head, tuned_lens):
     """
-    Stack all layer hidden states and do one big norm+lm_head+softmax.
+    Project a hidden state to probability distribution.
+
+    Logit lens:  norm(h) → lm_head → softmax
+    Tuned lens:  T_ell(h) → lm_head → softmax  (T_ell already maps to post-norm space)
+    """
+    if tuned_lens is not None:
+        translated = tuned_lens.translate(layer_idx, hidden)
+        logits = lm_head(translated).float()
+    else:
+        logits = lm_head(norm(hidden)).float()
+    return torch.softmax(logits, dim=-1)
+
+
+def _compute_batched(hidden_states, norm, lm_head,
+                     token_positions, num_layers, tuned_lens=None):
+    """
+    Stack all layer hidden states and do one big projection+softmax.
     Fast for short sequences (T <= ~100 tokens).
     """
-    # Final layer probs (post-norm, just lm_head)
     final_probs = _get_final_probs(hidden_states, lm_head, token_positions)
     T_sel = final_probs.shape[0]
-
-    # Stack the pre-norm layers (0..N-2) for batched norm+lm_head
     pre_norm_layers = num_layers - 1
-    stacked = torch.stack(
-        [hidden_states[i][0, token_positions, :] for i in range(pre_norm_layers)],
-        dim=0,
-    )  # [L-1, T, D]
 
-    L_pre, _, D = stacked.shape
-    flat = stacked.reshape(L_pre * T_sel, D)
-    flat_normed = norm(flat)
-    flat_logits = lm_head(flat_normed).float()
-    flat_probs = torch.softmax(flat_logits, dim=-1)
-    pre_norm_probs = flat_probs.reshape(L_pre, T_sel, -1)  # [L-1, T, V]
+    if tuned_lens is not None:
+        # Tuned lens: process layer by layer (translators differ per layer)
+        jsd_tensor = torch.zeros(T_sel, num_layers, device=final_probs.device)
+        for layer_idx in range(pre_norm_layers):
+            hidden = hidden_states[layer_idx][0, token_positions, :]
+            probs = _project_hidden(hidden, layer_idx, norm, lm_head, tuned_lens)
+            jsd_tensor[:, layer_idx] = jsd_matrix(final_probs, probs)
+            del probs
+    else:
+        # Logit lens: batch all pre-norm layers through norm+lm_head at once
+        stacked = torch.stack(
+            [hidden_states[i][0, token_positions, :] for i in range(pre_norm_layers)],
+            dim=0,
+        )  # [L-1, T, D]
 
-    del flat, flat_normed, flat_logits, flat_probs, stacked
+        L_pre, _, D = stacked.shape
+        flat = stacked.reshape(L_pre * T_sel, D)
+        flat_logits = lm_head(norm(flat)).float()
+        flat_probs = torch.softmax(flat_logits, dim=-1)
+        pre_norm_probs = flat_probs.reshape(L_pre, T_sel, -1)
 
-    # Compute JSD for each layer
-    jsd_tensor = torch.zeros(T_sel, num_layers, device=final_probs.device)
+        del flat, flat_logits, flat_probs, stacked
 
-    # Layers 0..N-2 (pre-norm, went through norm+lm_head)
-    for layer_idx in range(pre_norm_layers):
-        jsd_tensor[:, layer_idx] = jsd_matrix(final_probs, pre_norm_probs[layer_idx])
+        jsd_tensor = torch.zeros(T_sel, num_layers, device=final_probs.device)
+        for layer_idx in range(pre_norm_layers):
+            jsd_tensor[:, layer_idx] = jsd_matrix(final_probs, pre_norm_probs[layer_idx])
+        del pre_norm_probs
 
-    # Layer N-1 (final layer vs itself) — JSD should be 0
     jsd_tensor[:, num_layers - 1] = 0.0
-
-    del pre_norm_probs, final_probs
+    del final_probs
     return jsd_tensor
 
 
 def _compute_sequential(hidden_states, norm, lm_head,
-                         token_positions, num_layers):
+                         token_positions, num_layers, tuned_lens=None):
     """
     Process one layer at a time. Slower but uses less peak memory.
     Use for long sequences.
     """
-    # Final layer probs (post-norm, just lm_head)
     final_probs = _get_final_probs(hidden_states, lm_head, token_positions)
     T = final_probs.shape[0]
 
     jsd_tensor = torch.zeros(T, num_layers, device=final_probs.device)
 
-    # Layers 0..N-2 (pre-norm)
     for layer_idx in range(num_layers - 1):
         hidden = hidden_states[layer_idx][0, token_positions, :]
-        normed = norm(hidden)
-        logits = lm_head(normed).float()
-        probs = torch.softmax(logits, dim=-1)
+        probs = _project_hidden(hidden, layer_idx, norm, lm_head, tuned_lens)
         jsd_tensor[:, layer_idx] = jsd_matrix(final_probs, probs)
-        del normed, logits, probs
+        del probs
 
-    # Layer N-1 vs itself = 0
     jsd_tensor[:, num_layers - 1] = 0.0
-
     del final_probs
     return jsd_tensor

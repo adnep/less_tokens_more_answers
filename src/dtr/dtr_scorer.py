@@ -18,18 +18,27 @@ class DTRScorer:
         model_helper: Qwen3Helper,
         gamma: float = 0.5,
         rho: float = 0.85,
+        tuned_lens=None,
     ):
         """
         Args:
             model_helper: initialized Qwen3Helper
             gamma: settling threshold for JSD (paper default: 0.5)
             rho: depth fraction for deep-thinking regime (paper default: 0.85)
+            tuned_lens: optional TunedLens instance. If provided, uses learned
+                per-layer affine translators instead of direct norm+lm_head projection.
+                Load with: TunedLens.load("outputs/tuned_lens/weights.pt", device)
         """
         self.helper = model_helper
         self.gamma = gamma
         self.rho = rho
+        self.tuned_lens = tuned_lens
         self.num_layers = model_helper.num_layers
         self.deep_threshold = math.ceil(rho * self.num_layers)
+
+        lens_type = "tuned lens" if tuned_lens is not None else "logit lens"
+        print(f"DTRScorer initialized with {lens_type} "
+              f"(gamma={gamma}, rho={rho}, deep_threshold={self.deep_threshold})")
 
     def compute_dtr(
         self,
@@ -73,6 +82,7 @@ class DTRScorer:
             self.helper.lm_head,
             token_positions=token_positions,
             batch_layers=batch_layers,
+            tuned_lens=self.tuned_lens,
         )
 
         del hidden_states

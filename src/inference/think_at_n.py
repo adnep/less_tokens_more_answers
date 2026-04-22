@@ -13,6 +13,7 @@ from collections import Counter
 from src.model.qwen3_helper import Qwen3Helper
 from src.dtr.dtr_scorer import DTRScorer
 from src.inference.sampler import GeneratedSample
+from src.evaluation.voting import normalize_numeric_answer
 
 
 def think_at_n(
@@ -23,6 +24,7 @@ def think_at_n(
     eta: float = 0.5,
     prefix_length: int = 50,
     answer_extractor=None,
+    tuned_lens=None,
 ) -> dict:
     """
     Apply think@n selection to a set of samples for one problem.
@@ -36,6 +38,8 @@ def think_at_n(
         prefix_length: number of generated tokens for DTR estimation
         answer_extractor: callable(str) -> str to extract answer from text.
             If None, uses the raw answer_text field.
+        tuned_lens: optional TunedLens instance. If provided, uses trained
+            affine translators instead of direct logit lens projection.
 
     Returns:
         dict with:
@@ -44,7 +48,7 @@ def think_at_n(
             - all_answers: list of extracted answers from selected samples
             - n_selected: number of samples kept
     """
-    scorer = DTRScorer(model_helper, gamma=gamma, rho=rho)
+    scorer = DTRScorer(model_helper, gamma=gamma, rho=rho, tuned_lens=tuned_lens)
 
     # Compute prefix DTR for each sample
     dtr_scores = []
@@ -75,6 +79,8 @@ def think_at_n(
             else:
                 ans = sample.answer_text
             if ans:
+                # Normalize numeric answers (strip leading zeros)
+                ans = normalize_numeric_answer(ans)
                 answers.append(ans)
 
     # Majority vote

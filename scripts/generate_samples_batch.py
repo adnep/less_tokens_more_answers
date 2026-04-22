@@ -71,6 +71,13 @@ def main():
         default=0.95,
         help="Nucleus sampling parameter",
     )
+    parser.add_argument(
+        "--start-from",
+        type=str,
+        default=None,
+        help="Resume from this problem ID (skip all problems before it). "
+             "If not set, auto-detects completed problems from existing output file.",
+    )
     args = parser.parse_args()
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -115,14 +122,52 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
     output_file = os.path.join(args.output_dir, "generated_samples.jsonl")
 
-    # Start fresh (or append to existing)
-    file_mode = "a" if os.path.exists(output_file) else "w"
-    samples_written = 0
-    if file_mode == "a":
-        with open(output_file) as f:
-            samples_written = sum(1 for _ in f)
-        print(f"\n  Found existing file with {samples_written} samples. "
-              f"Appending new samples.")
+    # Find already-completed problems from existing output file
+    completed_ids = set()
+    # samples_written = 0
+    # if os.path.exists(output_file):
+    #     from collections import Counter
+    #     id_counts = Counter()
+    #     with open(output_file) as f:
+    #         for line in f:
+    #             line = line.strip()
+    #             if not line:
+    #                 continue
+    #             try:
+    #                 d = json.loads(line)
+    #                 id_counts[d["problem_id"]] += 1
+    #                 samples_written += 1
+    #             except json.JSONDecodeError:
+    #                 pass
+    #     # A problem is "complete" if it already has n_samples samples
+    #     completed_ids = {pid for pid, cnt in id_counts.items() if cnt >= args.n_samples}
+    #     print(f"\n  Found existing file with {samples_written} samples "
+    #           f"({len(completed_ids)} fully completed problems). Appending new samples.")
+
+    # Filter prompts: skip completed problems, optionally start from a given ID
+    if args.start_from:
+        problem_ids = [p["id"] for p in prompts]
+        if args.start_from not in problem_ids:
+            print(f"✗ ERROR: --start-from '{args.start_from}' not found in benchmark.")
+            print(f"  Available IDs: {problem_ids[:5]} ...")
+            return 1
+        start_idx = problem_ids.index(args.start_from)
+        skipped = start_idx
+        prompts = prompts[start_idx:]
+        print(f"\n  Resuming from '{args.start_from}' (skipping {skipped} problems).")
+    else:
+        # Auto-skip problems already fully completed
+        before = len(prompts)
+        prompts = [p for p in prompts if p["id"] not in completed_ids]
+        skipped = before - len(prompts)
+        if skipped > 0:
+            print(f"\n  Auto-skipping {skipped} already-completed problems.")
+
+    if not prompts:
+        print("\n✓ All problems already completed! Nothing to generate.")
+        return 0
+
+    print(f"  Problems remaining: {len(prompts)}")
 
     # Generate samples (streaming to disk)
     print(f"\nGenerating {args.n_samples} samples per problem...")

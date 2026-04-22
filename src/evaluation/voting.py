@@ -7,13 +7,41 @@ from typing import List, Optional
 from collections import Counter
 
 
+def _extract_boxed_contents(text: str) -> list:
+    """
+    Extract all \\boxed{...} contents, correctly handling nested braces.
+    e.g. \\boxed{\\frac{1}{576}} returns ['\\frac{1}{576}']
+    """
+    results = []
+    i = 0
+    while i < len(text):
+        idx = text.find(r"\boxed{", i)
+        if idx == -1:
+            break
+        # Start after the opening brace
+        start = idx + len(r"\boxed{")
+        depth = 1
+        j = start
+        while j < len(text) and depth > 0:
+            if text[j] == '{':
+                depth += 1
+            elif text[j] == '}':
+                depth -= 1
+            j += 1
+        if depth == 0:
+            results.append(text[start:j - 1])
+        i = j
+    return results
+
+
 def extract_answer_math(text: str) -> Optional[str]:
     """
-    Extract numeric answer from model output.
-    Looks for \\boxed{}, "final answer is X", or last standalone number.
+    Extract answer from a region of model output (typically post-</think> section).
+    Accepts: last \\boxed{...} found, or "answer is X" pattern.
+    Returns None if no clear answer marker is found.
     """
-    # Try \boxed{...}
-    boxed = re.findall(r"\\boxed\{([^}]+)\}", text)
+    # Try \boxed{...} with proper nested brace handling
+    boxed = _extract_boxed_contents(text)
     if boxed:
         return boxed[-1].strip()
 
@@ -24,16 +52,7 @@ def extract_answer_math(text: str) -> Optional[str]:
     if answer_pattern:
         return answer_pattern.group(1)
 
-    # Try "= X" at end of reasoning
-    equals = re.findall(r"=\s*(\d+)\s*$", text, re.MULTILINE)
-    if equals:
-        return equals[-1]
-
-    # Last standalone integer
-    numbers = re.findall(r"\b(\d+)\b", text)
-    if numbers:
-        return numbers[-1]
-
+    # No clear answer found — don't guess from random numbers
     return None
 
 
@@ -59,16 +78,92 @@ def extract_answer_choice(text: str) -> Optional[str]:
 
 
 def extract_answer(text: str, answer_type: str) -> Optional[str]:
-    """Extract answer based on type."""
-    # Split off thinking part if present
-    if "</think>" in text:
-        text = text.split("</think>", 1)[1]
+    """Extract answer based on type.
+
+    Strategy:
+    - If the model produced </think>, ONLY look at the text after </think>.
+      Boxes inside <think> are intermediate steps, not the final answer.
+      If nothing is found after </think> → return None (unanswered).
+    - If the model did NOT produce </think> (truncated or no think block),
+      search the full text as a fallback.
+
+    This prevents mid-reasoning \\boxed{} from being mistaken for the answer.
+    """
+    has_think_close = "</think>" in text
+    if has_think_close:
+        answer_region = text.split("</think>", 1)[1]
+    else:
+        # No </think> found: model may have been truncated or skipped thinking.
+        # Fall back to full text.
+        answer_region = text
 
     if answer_type == "integer":
-        return extract_answer_math(text)
+        return extract_answer_math(answer_region)
     elif answer_type == "choice":
-        return extract_answer_choice(text)
-    return text.strip()
+        return extract_answer_choice(answer_region)
+    elif answer_type == "expression":
+        # For HMMT-style: extract boxed content as-is (may be LaTeX expression)
+        answ = extract_answer_math(answer_region)
+        return answ.replace("dfrac", "frac") if answ else answ
+    return answer_region.strip()
+
+
+def expressions_equal(pred: Optional[str], ref: Optional[str]) -> bool:
+    """
+    Compare two mathematical expressions for equality.
+    Used for HMMT-style answers (fractions, surds, expressions).
+
+    Strategy:
+    1. Exact string match (handles most integer/simple cases)
+    2. Numeric float comparison via sympy parsing
+    """
+    if pred is None or ref is None:
+        return False
+
+    # Normalize both: strip whitespace and leading zeros for pure integers
+    pred_norm = normalize_numeric_answer(pred.strip())
+    ref_norm = normalize_numeric_answer(ref.strip())
+
+    if pred_norm == ref_norm:
+        return True
+
+    # Try symbolic comparison via sympy
+    try:
+        from sympy.parsing.latex import parse_latex
+        from sympy import simplify, N
+
+        pred_expr = parse_latex(pred_norm)
+        ref_expr = parse_latex(ref_norm)
+
+        # Check symbolic equality
+        if simplify(pred_expr - ref_expr) == 0:
+            return True
+
+        # Check numeric equality (handles cases like sqrt(2) vs 1.41...)
+        pred_val = float(N(pred_expr))
+        ref_val = float(N(ref_expr))
+        return abs(pred_val - ref_val) < 1e-4
+
+    except Exception:
+        # sympy couldn't parse — fall back to string match only
+        return False
+
+
+def normalize_numeric_answer(answer: Optional[str]) -> Optional[str]:
+    """Normalize numeric answers by removing leading zeros.
+
+    "033" and "33" should be treated as the same answer.
+    Only strips leading zeros from pure numeric answers.
+    """
+    if answer is None or not answer:
+        return answer
+
+    # If it's a pure number, strip leading zeros
+    if answer.strip().isdigit():
+        return str(int(answer.strip()))
+
+    # Otherwise keep as-is (e.g., "A", "B", "pi", etc.)
+    return answer
 
 
 def majority_vote(answers: List[str]) -> Optional[str]:

@@ -15,7 +15,7 @@ import argparse
 import yaml
 
 from src.evaluation.benchmarks import load_benchmark, format_prompt
-from src.evaluation.voting import extract_answer, majority_vote
+from src.evaluation.voting import extract_answer, majority_vote, normalize_numeric_answer
 from src.evaluation.metrics import accuracy, pass_at_n
 from src.inference.sampler import (
     generate_samples_vllm, save_samples, load_samples, GeneratedSample,
@@ -29,7 +29,10 @@ def main():
                        help="Load pre-generated samples instead of generating")
     parser.add_argument("--skip-generation", action="store_true",
                        help="Skip generation, only run DTR selection on existing samples")
-    parser.add_argument("--output-dir", default="outputs/think_at_n")
+    parser.add_argument("--output-dir", default="outputs/think_at_n/gpqa")
+    parser.add_argument("--tuned-lens", default=None,
+                        help="Path to tuned lens weights (.pt file). "
+                             "If omitted, uses standard logit lens.")
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -83,19 +86,37 @@ def main():
     print("Computing baselines (no DTR, no HF model needed)...")
 
     all_extracted = []  # per-problem list of all answers
+    print(len(problems))
+    print(len(all_samples))
+    ind = 1
     for problem, samples in zip(problems, all_samples):
-        answers = [
-            extract_answer(s.generated_text, problem.answer_type) for s in samples
-        ]
+        answers = []
+        # try:
+        #     print(vars(problem))
+        # except TypeError:
+        #     print(repr(problem))
+        # # print(f"Problem {problem.id}: Ref answer: {normalize_numeric_answer(problem.answer)}")
+        for s in samples:
+            ans = normalize_numeric_answer(extract_answer(s.generated_text, problem.answer_type))
+            answers.append(ans)
+            # print(f"  Sample {s.sample_idx}: {ans}")
+        # answers = [
+        #     normalize_numeric_answer(extract_answer(s.generated_text, problem.answer_type)) for s in samples
+        # ]
+        print(ind)
+        ind += 1
         all_extracted.append(answers)
+    print(len(all_extracted))
 
-    references = [p.answer for p in problems]
+    references = [normalize_numeric_answer(p.answer) for p in problems]
 
     # maj@n: majority vote over all n samples
     maj_predictions = []
     for answers in all_extracted:
         valid = [a for a in answers if a is not None]
+        print(f"  maj@{n} valid answers: {valid}")
         maj_predictions.append(majority_vote(valid))
+    print(len(maj_predictions))
     maj_acc = accuracy(maj_predictions, references)
     print(f"  maj@{n} accuracy: {maj_acc:.4f} ({int(maj_acc * len(references))}/{len(references)})")
 
@@ -113,6 +134,18 @@ def main():
 
     helper = Qwen3Helper(model_name=model_name)
 
+    # Load tuned lens if provided, otherwise use logit lens
+    tuned_lens = None
+    if args.tuned_lens:
+        from src.model.tuned_lens import TunedLens
+        import torch
+        device = str(next(helper.model.parameters()).device)
+        print(f"Loading tuned lens from {args.tuned_lens} onto {device}...")
+        tuned_lens = TunedLens.load(args.tuned_lens, device=device)
+        print("  Tuned lens loaded.")
+    else:
+        print("Using logit lens (no --tuned-lens provided).")
+
     think_predictions = []
     think_results = []
     for i, (problem, samples) in enumerate(zip(problems, all_samples)):
@@ -129,11 +162,12 @@ def main():
             eta=eta,
             prefix_length=prefix_length,
             answer_extractor=answer_extractor,
+            tuned_lens=tuned_lens,
         )
         think_predictions.append(result["selected_answer"])
         think_results.append(result)
 
-        correct = str(result["selected_answer"]).strip() == str(problem.answer).strip()
+        correct = str(result["selected_answer"]).strip() == str(normalize_numeric_answer(problem.answer)).strip()
         top_dtr = result["dtr_scores"][0][1] if result["dtr_scores"] else 0
         print(f"    Answer: {result['selected_answer']} (ref: {problem.answer}) "
               f"{'CORRECT' if correct else 'WRONG'} | Top DTR: {top_dtr:.4f}")
@@ -150,6 +184,7 @@ def main():
     results = {
         "benchmark": benchmark_name,
         "model": model_name,
+        "lens": args.tuned_lens if args.tuned_lens else "logit_lens",
         "n": n,
         "eta": eta,
         "prefix_length": prefix_length,
@@ -165,13 +200,21 @@ def main():
                 "maj_answer": maj_predictions[i],
                 "think_answer": think_predictions[i],
                 "dtr_scores": think_results[i]["dtr_scores"],
+                "sample_extractions": [
+                    {
+                        "sample_idx": s.sample_idx,
+                        "extracted_answer": all_extracted[i][j],
+                        "answer_text": s.answer_text[:500] if s.answer_text else "",
+                    }
+                    for j, s in enumerate(all_samples[i])
+                ],
             }
             for i, p in enumerate(problems)
         ],
     }
-    with open(os.path.join(args.output_dir, "results.json"), "w") as f:
+    with open(os.path.join(args.output_dir, f"results_16k_pr{prefix_length}{'_tuned' if args.tuned_lens else ''}.json"), "w") as f:
         json.dump(results, f, indent=2)
-    print(f"\nResults saved to {args.output_dir}/results.json")
+    print(f"\nResults saved to {args.output_dir}/results_16k_pr{prefix_length}{'_tuned' if args.tuned_lens else ''}.json")
 
 
 if __name__ == "__main__":
