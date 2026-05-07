@@ -77,6 +77,40 @@ def extract_answer_choice(text: str) -> Optional[str]:
     return None
 
 
+def extract_answer_yesno(text: str) -> Optional[str]:
+    """Extract a Yes/No answer from model output.
+
+    Priority:
+    1. Last \\boxed{Yes} or \\boxed{No}
+    2. Explicit "answer is Yes/No" pattern
+    3. Last standalone Yes/No in the text (case-insensitive)
+    Returns capitalised "Yes" or "No", or None if not found.
+    """
+    # 1. Check \boxed{Yes} / \boxed{No}
+    boxed = _extract_boxed_contents(text)
+    if boxed:
+        last = boxed[-1].strip().lower()
+        if last == "yes":
+            return "Yes"
+        if last == "no":
+            return "No"
+
+    # 2. Explicit answer pattern
+    match = re.search(
+        r"(?:final\s+)?(?:answer|result)\s+is\s*[:\s]*(yes|no)\b",
+        text, re.IGNORECASE
+    )
+    if match:
+        return match.group(1).capitalize()
+
+    # 3. Last standalone yes/no in the text
+    matches = re.findall(r"\b(yes|no)\b", text, re.IGNORECASE)
+    if matches:
+        return matches[-1].capitalize()
+
+    return None
+
+
 def extract_answer(text: str, answer_type: str) -> Optional[str]:
     """Extract answer based on type.
 
@@ -103,8 +137,9 @@ def extract_answer(text: str, answer_type: str) -> Optional[str]:
         return extract_answer_choice(answer_region)
     elif answer_type == "expression":
         # For HMMT-style: extract boxed content as-is (may be LaTeX expression)
-        answ = extract_answer_math(answer_region)
-        return answ.replace("dfrac", "frac") if answ else answ
+        return extract_answer_math(answer_region)
+    elif answer_type == "yes_no":
+        return extract_answer_yesno(answer_region)
     return answer_region.strip()
 
 

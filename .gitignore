@@ -1,3 +1,5 @@
 *pycache*
 *.json*
 core
+outputs
+datasets

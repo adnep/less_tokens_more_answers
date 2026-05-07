@@ -1,5 +1,8 @@
 """
-Analyze results.json: DTR scores vs correctness.
+Analyze results.json: score distributions vs correctness, Pearson correlations.
+
+Supports any score columns saved by run_think_at_n.py:
+  score_dtr, score_selfcert, score_logprob
 
 Usage:
     python scripts/analyze_results.py --results outputs/think_at_n/results.json
@@ -15,361 +18,372 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from collections import Counter
+from collections import defaultdict
+from scipy import stats
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Loading + classification
+# ──────────────────────────────────────────────────────────────────────────────
 
 def load_results(path):
     with open(path) as f:
         return json.load(f)
 
 
+def _normalize(s):
+    """Strip all whitespace — LaTeX spacing variants compare equal."""
+    import re
+    if s is None:
+        return None
+    s = str(s).strip()
+    s = re.sub(r'\s+', '', s)
+    # Strip leading zeros from pure integers
+    if s.isdigit():
+        s = str(int(s))
+    return s
+
+
 def classify_samples(results):
-    """Classify each sample as correct, incorrect, or unanswered."""
+    """
+    Return a flat list of per-sample records.
+    Each record has: problem_id, sample_idx, extracted, reference, status,
+    and one key per score column found (score_dtr, score_selfcert, score_logprob, …).
+    """
     records = []
+
+    # Detect which score columns are present from the first sample_extraction
+    score_keys = []
+    for prob in results["per_problem"]:
+        exts = prob.get("sample_extractions", [])
+        if exts:
+            score_keys = [k for k in exts[0] if k.startswith("score_")]
+            break
+
     for problem in results["per_problem"]:
-        ref = str(problem["reference"]).strip()
-        for dtr_entry in problem["dtr_scores"]:
-            sample_idx, dtr_score = dtr_entry[0], dtr_entry[1]
-
-            # Find the extracted answer for this sample
-            extracted = None
-            for ext in problem.get("sample_extractions", []):
-                if ext["sample_idx"] == sample_idx:
-                    extracted = ext["extracted_answer"]
-                    break
-
-            if extracted is None:
+        ref = _normalize(problem["reference"])
+        for ext in problem.get("sample_extractions", []):
+            extracted = _normalize(ext.get("extracted_answer"))
+            if extracted is None or extracted == "":
                 status = "unanswered"
-            elif str(extracted).strip() == ref:
+            elif extracted == ref:
                 status = "correct"
             else:
                 status = "incorrect"
 
-            records.append({
+            record = {
                 "problem_id": problem["id"],
-                "sample_idx": sample_idx,
-                "dtr": dtr_score,
-                "extracted": extracted,
-                "reference": ref,
-                "status": status,
-            })
-    return records
+                "sample_idx": ext["sample_idx"],
+                "extracted":  extracted,
+                "reference":  ref,
+                "status":     status,
+            }
+            for k in score_keys:
+                record[k] = ext.get(k)
+
+            records.append(record)
+
+    return records, score_keys
 
 
 COLORS = {"correct": "#2ecc71", "incorrect": "#e74c3c", "unanswered": "#95a5a6"}
 
 
-def plot_dtr_distribution(records, output_dir):
-    """Histogram of DTR scores colored by correctness."""
+# ──────────────────────────────────────────────────────────────────────────────
+# Pearson correlation
+# ──────────────────────────────────────────────────────────────────────────────
+
+def compute_correlations(records, score_keys):
+    """
+    For each score column, compute Pearson r between the score and a binary
+    correctness label (1=correct, 0=incorrect/unanswered) across all samples.
+    Also compute r excluding unanswered samples.
+    """
+    answered = [r for r in records if r["status"] != "unanswered"]
+
+    print(f"\n{'='*55}")
+    print(f"Pearson r: score vs correctness")
+    print(f"{'='*55}")
+    print(f"  {'metric':<16}  {'r (all)':>10}  {'p':>8}  {'r (answered)':>14}  {'p':>8}")
+    print(f"  {'-'*16}  {'-'*10}  {'-'*8}  {'-'*14}  {'-'*8}")
+
+    results_table = {}
+    for key in score_keys:
+        label = key.replace("score_", "")
+
+        # All samples (unanswered = 0)
+        valid_all = [(r[key], 1 if r["status"] == "correct" else 0)
+                     for r in records if r[key] is not None]
+        if len(valid_all) > 2:
+            scores_arr, labels_arr = zip(*valid_all)
+            if np.std(scores_arr) < 1e-10:
+                r_all, p_all = float("nan"), float("nan")
+            else:
+                r_all, p_all = stats.pearsonr(scores_arr, labels_arr)
+        else:
+            r_all, p_all = float("nan"), float("nan")
+
+        # Answered only
+        valid_ans = [(r[key], 1 if r["status"] == "correct" else 0)
+                     for r in answered if r[key] is not None]
+        if len(valid_ans) > 2:
+            scores_arr, labels_arr = zip(*valid_ans)
+            if np.std(scores_arr) < 1e-10:
+                r_ans, p_ans = float("nan"), float("nan")
+            else:
+                r_ans, p_ans = stats.pearsonr(scores_arr, labels_arr)
+        else:
+            r_ans, p_ans = float("nan"), float("nan")
+
+        print(f"  {label:<16}  {r_all:>10.4f}  {p_all:>8.4f}  {r_ans:>14.4f}  {p_ans:>8.4f}")
+        results_table[label] = {"r_all": r_all, "p_all": p_all,
+                                 "r_answered": r_ans, "p_answered": p_ans}
+
+    return results_table
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Plots
+# ──────────────────────────────────────────────────────────────────────────────
+
+def plot_score_distribution(records, score_key, output_dir):
+    """Histogram of scores coloured by correctness."""
+    label = score_key.replace("score_", "")
     fig, ax = plt.subplots(figsize=(10, 5))
-
     for status in ["correct", "incorrect", "unanswered"]:
-        dtrs = [r["dtr"] for r in records if r["status"] == status]
-        if dtrs:
-            ax.hist(dtrs, bins=20, alpha=0.6, label=f"{status} (n={len(dtrs)})",
+        vals = [r[score_key] for r in records
+                if r["status"] == status and r[score_key] is not None]
+        if vals:
+            ax.hist(vals, bins=20, alpha=0.6,
+                    label=f"{status} (n={len(vals)})",
                     color=COLORS[status], edgecolor="white")
-
-    ax.set_xlabel("Prefix DTR Score")
+    ax.set_xlabel(f"{label} score")
     ax.set_ylabel("Count")
-    ax.set_title("DTR Score Distribution by Correctness")
+    ax.set_title(f"{label} distribution by correctness")
     ax.legend()
-    ax.set_xlim(0, 1)
     fig.tight_layout()
-    fig.savefig(os.path.join(output_dir, "dtr_distribution.png"), dpi=150)
+    path = os.path.join(output_dir, f"dist_{label}.png")
+    fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"  Saved dtr_distribution.png")
+    print(f"  Saved dist_{label}.png")
 
 
-def plot_dtr_violin(records, output_dir):
-    """Violin/box plot of DTR by correctness category."""
+def plot_score_violin(records, score_key, output_dir):
+    """Violin plot of score by correctness category."""
+    label = score_key.replace("score_", "")
     fig, ax = plt.subplots(figsize=(8, 5))
-
     categories = ["correct", "incorrect", "unanswered"]
-    data = []
-    labels = []
-    colors = []
+    data, xlabels, colors = [], [], []
     for cat in categories:
-        dtrs = [r["dtr"] for r in records if r["status"] == cat]
-        if dtrs:
-            data.append(dtrs)
-            labels.append(f"{cat}\n(n={len(dtrs)})")
+        vals = [r[score_key] for r in records
+                if r["status"] == cat and r[score_key] is not None]
+        if vals:
+            data.append(vals)
+            xlabels.append(f"{cat}\n(n={len(vals)})")
             colors.append(COLORS[cat])
-
     if not data:
         plt.close(fig)
         return
-
     parts = ax.violinplot(data, showmeans=True, showmedians=True)
     for i, pc in enumerate(parts["bodies"]):
         pc.set_facecolor(colors[i])
         pc.set_alpha(0.6)
     parts["cmeans"].set_color("black")
     parts["cmedians"].set_color("blue")
-
-    ax.set_xticks(range(1, len(labels) + 1))
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("Prefix DTR Score")
-    ax.set_title("DTR Score Distribution by Correctness")
-    ax.set_ylim(0, 1)
-
-    # Add legend for mean/median
+    ax.set_xticks(range(1, len(xlabels) + 1))
+    ax.set_xticklabels(xlabels)
+    ax.set_ylabel(f"{label} score")
+    ax.set_title(f"{label} by correctness")
     ax.plot([], [], color="black", label="Mean")
-    ax.plot([], [], color="blue", label="Median")
+    ax.plot([], [], color="blue",  label="Median")
     ax.legend()
-
     fig.tight_layout()
-    fig.savefig(os.path.join(output_dir, "dtr_violin.png"), dpi=150)
+    path = os.path.join(output_dir, f"violin_{label}.png")
+    fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"  Saved dtr_violin.png")
+    print(f"  Saved violin_{label}.png")
 
 
-def plot_dtr_strip(records, output_dir):
-    """Strip/swarm plot showing individual samples."""
-    fig, ax = plt.subplots(figsize=(8, 5))
-
-    categories = ["correct", "incorrect", "unanswered"]
-    for i, cat in enumerate(categories):
-        dtrs = [r["dtr"] for r in records if r["status"] == cat]
-        if dtrs:
-            # Add jitter
-            jitter = np.random.normal(0, 0.08, len(dtrs))
-            ax.scatter(
-                [i + 1] * len(dtrs) + jitter, dtrs,
-                alpha=0.5, s=30, color=COLORS[cat],
-                label=f"{cat} (n={len(dtrs)})", edgecolors="white", linewidth=0.3
-            )
-            # Add mean marker
-            ax.scatter([i + 1], [np.mean(dtrs)], color="black", s=100,
-                       marker="D", zorder=5)
-
-    ax.set_xticks(range(1, len(categories) + 1))
-    ax.set_xticklabels(categories)
-    ax.set_ylabel("Prefix DTR Score")
-    ax.set_title("Individual Sample DTR Scores")
-    ax.set_ylim(0, 1)
-    fig.tight_layout()
-    fig.savefig(os.path.join(output_dir, "dtr_strip.png"), dpi=150)
-    plt.close(fig)
-    print(f"  Saved dtr_strip.png")
-
-
-def plot_accuracy_by_dtr_threshold(records, output_dir):
-    """Accuracy curve: if we only keep samples above DTR threshold, what accuracy?"""
-    answered = [r for r in records if r["status"] != "unanswered"]
-    if not answered:
+def plot_score_vs_correctness_scatter(records, score_key, output_dir):
+    """Scatter: score (x) vs binary correctness (y) with regression line."""
+    label = score_key.replace("score_", "")
+    answered = [r for r in records
+                if r["status"] != "unanswered" and r[score_key] is not None]
+    if len(answered) < 3:
         return
 
-    dtrs = sorted(set(r["dtr"] for r in answered))
-    thresholds = np.linspace(0, max(dtrs), 50)
+    xs = np.array([r[score_key] for r in answered])
+    ys = np.array([1 if r["status"] == "correct" else 0 for r in answered])
+    colors = [COLORS[r["status"]] for r in answered]
 
-    accuracies = []
-    counts = []
-    for thresh in thresholds:
-        above = [r for r in answered if r["dtr"] >= thresh]
-        if above:
-            acc = sum(1 for r in above if r["status"] == "correct") / len(above)
-            accuracies.append(acc)
-            counts.append(len(above))
-        else:
-            accuracies.append(None)
-            counts.append(0)
+    # Guard: constant scores make correlation undefined
+    if np.std(xs) < 1e-10:
+        print(f"  Skipping scatter_{label}.png — all scores identical (logprobs not stored?)")
+        return
 
-    fig, ax1 = plt.subplots(figsize=(10, 5))
+    r, p = stats.pearsonr(xs, ys)
 
-    # Accuracy line
-    valid = [(t, a) for t, a in zip(thresholds, accuracies) if a is not None]
-    if valid:
-        ts, accs = zip(*valid)
-        ax1.plot(ts, accs, "b-o", markersize=3, label="Accuracy")
-        ax1.set_xlabel("DTR Threshold (keep samples >= threshold)")
-        ax1.set_ylabel("Accuracy", color="blue")
-        ax1.tick_params(axis="y", labelcolor="blue")
-        ax1.set_ylim(0, 1.05)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.scatter(xs, ys + np.random.normal(0, 0.02, len(ys)),
+               c=colors, alpha=0.5, s=25, edgecolors="none")
 
-    # Sample count on secondary axis
-    ax2 = ax1.twinx()
-    ax2.fill_between(thresholds, counts, alpha=0.15, color="gray")
-    ax2.set_ylabel("Samples Remaining", color="gray")
-    ax2.tick_params(axis="y", labelcolor="gray")
+    # Regression line
+    try:
+        m, b = np.polyfit(xs, ys, 1)
+        xline = np.linspace(xs.min(), xs.max(), 100)
+        ax.plot(xline, m * xline + b, "k--", lw=1.5,
+                label=f"r={r:.3f}, p={p:.4f}")
+    except np.linalg.LinAlgError:
+        ax.set_title(f"{label} vs correctness  (regression failed)")
+        pass
 
-    ax1.set_title("Accuracy vs DTR Threshold (among answered samples)")
-    ax1.legend(loc="upper left")
+    ax.set_xlabel(f"{label} score")
+    ax.set_ylabel("Correct (1) / Incorrect (0)")
+    ax.set_title(f"{label} vs correctness  (answered samples only)")
+    ax.legend()
     fig.tight_layout()
-    fig.savefig(os.path.join(output_dir, "accuracy_by_dtr_threshold.png"), dpi=150)
+    path = os.path.join(output_dir, f"scatter_{label}.png")
+    fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"  Saved accuracy_by_dtr_threshold.png")
+    print(f"  Saved scatter_{label}.png")
 
 
-def plot_per_problem_dtr(records, output_dir):
-    """Per-problem bar chart: mean DTR colored by majority correctness."""
-    from collections import defaultdict
+def plot_correlation_comparison(corr_table, output_dir):
+    """Bar chart comparing Pearson r across all score metrics."""
+    if not corr_table:
+        return
+    labels = list(corr_table.keys())
+    r_vals = [corr_table[k]["r_answered"] for k in labels]
+    colors = ["#3498db" if r >= 0 else "#e74c3c" for r in r_vals]
 
+    fig, ax = plt.subplots(figsize=(max(6, len(labels) * 1.5), 4))
+    bars = ax.bar(labels, r_vals, color=colors, edgecolor="white", width=0.5)
+    ax.axhline(0, color="black", lw=0.8)
+    ax.set_ylim(-1, 1)
+    ax.set_ylabel("Pearson r  (score vs correctness)")
+    ax.set_title("Metric comparison: correlation with correctness\n(answered samples only)")
+    for bar, val in zip(bars, r_vals):
+        ax.text(bar.get_x() + bar.get_width() / 2,
+                val + (0.03 if val >= 0 else -0.06),
+                f"{val:.3f}", ha="center", va="bottom", fontsize=9)
+    fig.tight_layout()
+    path = os.path.join(output_dir, "correlation_comparison.png")
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    print(f"  Saved correlation_comparison.png")
+
+
+def plot_per_problem_score(records, score_key, output_dir):
+    """Per-problem mean score bar chart coloured by majority correctness."""
+    label = score_key.replace("score_", "")
     by_problem = defaultdict(list)
     for r in records:
-        by_problem[r["problem_id"]].append(r)
+        if r[score_key] is not None:
+            by_problem[r["problem_id"]].append(r)
 
-    problem_ids = []
-    mean_dtrs = []
-    bar_colors = []
-
+    pids, means, bar_colors = [], [], []
     for pid in sorted(by_problem.keys()):
-        samples = by_problem[pid]
-        problem_ids.append(pid)
-        mean_dtrs.append(np.mean([s["dtr"] for s in samples]))
-
-        # Color by whether majority of samples are correct
-        n_correct = sum(1 for s in samples if s["status"] == "correct")
-        n_total = len(samples)
+        samps = by_problem[pid]
+        pids.append(pid)
+        means.append(np.mean([s[score_key] for s in samps]))
+        n_correct = sum(1 for s in samps if s["status"] == "correct")
+        n_total   = len(samps)
         if n_correct > n_total / 2:
             bar_colors.append(COLORS["correct"])
-        elif any(s["status"] == "correct" for s in samples):
-            bar_colors.append("#f39c12")  # orange: some correct
+        elif n_correct > 0:
+            bar_colors.append("#f39c12")
         else:
             bar_colors.append(COLORS["incorrect"])
 
-    fig, ax = plt.subplots(figsize=(max(12, len(problem_ids) * 0.3), 5))
-    bars = ax.bar(range(len(problem_ids)), mean_dtrs, color=bar_colors, edgecolor="white")
-    ax.set_xticks(range(len(problem_ids)))
-    ax.set_xticklabels(problem_ids, rotation=90, fontsize=6)
-    ax.set_ylabel("Mean DTR Score")
-    ax.set_title("Mean DTR per Problem")
-    ax.set_ylim(0, 1)
-
-    # Legend
+    fig, ax = plt.subplots(figsize=(max(12, len(pids) * 0.3), 5))
+    ax.bar(range(len(pids)), means, color=bar_colors, edgecolor="white")
+    ax.set_xticks(range(len(pids)))
+    ax.set_xticklabels(pids, rotation=90, fontsize=6)
+    ax.set_ylabel(f"Mean {label} score")
+    ax.set_title(f"Mean {label} per problem")
     patches = [
         mpatches.Patch(color=COLORS["correct"], label="Majority correct"),
-        mpatches.Patch(color="#f39c12", label="Some correct"),
-        mpatches.Patch(color=COLORS["incorrect"], label="All incorrect"),
+        mpatches.Patch(color="#f39c12",          label="Some correct"),
+        mpatches.Patch(color=COLORS["incorrect"],label="All incorrect"),
     ]
-    ax.legend(handles=patches, loc="upper right")
-
+    ax.legend(handles=patches)
     fig.tight_layout()
-    fig.savefig(os.path.join(output_dir, "per_problem_dtr.png"), dpi=150)
+    path = os.path.join(output_dir, f"per_problem_{label}.png")
+    fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"  Saved per_problem_dtr.png")
+    print(f"  Saved per_problem_{label}.png")
 
 
-def plot_think_vs_maj(results, output_dir):
-    """Compare think@n selection vs majority vote per problem."""
-    problems = results["per_problem"]
-
-    think_correct = []
-    maj_correct = []
-    dtrs_mean = []
-    labels = []
-
-    for p in problems:
-        ref = str(p["reference"]).strip()
-        tc = str(p.get("think_answer", "")).strip() == ref
-        mc = str(p.get("maj_answer", "")).strip() == ref
-        think_correct.append(tc)
-        maj_correct.append(mc)
-        labels.append(p["id"])
-
-        # Mean DTR for this problem
-        if p["dtr_scores"]:
-            dtrs_mean.append(np.mean([d[1] for d in p["dtr_scores"]]))
-        else:
-            dtrs_mean.append(0)
-
-    # Categorize: both correct, only think, only maj, neither
-    categories = []
-    for tc, mc in zip(think_correct, maj_correct):
-        if tc and mc:
-            categories.append("both")
-        elif tc:
-            categories.append("think_only")
-        elif mc:
-            categories.append("maj_only")
-        else:
-            categories.append("neither")
-
-    cat_colors = {
-        "both": "#2ecc71",
-        "think_only": "#3498db",
-        "maj_only": "#e67e22",
-        "neither": "#e74c3c",
-    }
-
-    fig, ax = plt.subplots(figsize=(max(12, len(labels) * 0.3), 5))
-    colors = [cat_colors[c] for c in categories]
-    ax.bar(range(len(labels)), dtrs_mean, color=colors, edgecolor="white")
-    ax.set_xticks(range(len(labels)))
-    ax.set_xticklabels(labels, rotation=90, fontsize=6)
-    ax.set_ylabel("Mean DTR Score")
-    ax.set_title("think@n vs maj@n: Which Problems Does DTR Selection Help?")
-    ax.set_ylim(0, 1)
-
-    patches = [
-        mpatches.Patch(color=cat_colors["both"], label="Both correct"),
-        mpatches.Patch(color=cat_colors["think_only"], label="Only think@n correct"),
-        mpatches.Patch(color=cat_colors["maj_only"], label="Only maj@n correct"),
-        mpatches.Patch(color=cat_colors["neither"], label="Neither correct"),
-    ]
-    ax.legend(handles=patches, loc="upper right")
-
-    fig.tight_layout()
-    fig.savefig(os.path.join(output_dir, "think_vs_maj.png"), dpi=150)
-    plt.close(fig)
-    print(f"  Saved think_vs_maj.png")
-
-
-def print_summary(records, results):
-    """Print summary statistics."""
-    total = len(records)
-    correct = sum(1 for r in records if r["status"] == "correct")
+def print_summary(records, score_keys, results):
+    total     = len(records)
+    correct   = sum(1 for r in records if r["status"] == "correct")
     incorrect = sum(1 for r in records if r["status"] == "incorrect")
-    unanswered = sum(1 for r in records if r["status"] == "unanswered")
+    unanswered= sum(1 for r in records if r["status"] == "unanswered")
 
-    print(f"\n{'='*50}")
-    print(f"Summary Statistics")
-    print(f"{'='*50}")
-    print(f"Total samples:  {total}")
-    print(f"  Correct:      {correct} ({correct/total*100:.1f}%)")
-    print(f"  Incorrect:    {incorrect} ({incorrect/total*100:.1f}%)")
-    print(f"  Unanswered:   {unanswered} ({unanswered/total*100:.1f}%)")
+    print(f"\n{'='*55}")
+    print(f"Sample-level summary  ({total} total samples)")
+    print(f"{'='*55}")
+    print(f"  Correct:    {correct:4d}  ({correct/total*100:.1f}%)")
+    print(f"  Incorrect:  {incorrect:4d}  ({incorrect/total*100:.1f}%)")
+    print(f"  Unanswered: {unanswered:4d}  ({unanswered/total*100:.1f}%)")
 
-    for status in ["correct", "incorrect", "unanswered"]:
-        dtrs = [r["dtr"] for r in records if r["status"] == status]
-        if dtrs:
-            print(f"\n  DTR ({status}):")
-            print(f"    Mean:   {np.mean(dtrs):.4f}")
-            print(f"    Median: {np.median(dtrs):.4f}")
-            print(f"    Std:    {np.std(dtrs):.4f}")
-            print(f"    Range:  [{min(dtrs):.4f}, {max(dtrs):.4f}]")
+    for key in score_keys:
+        label = key.replace("score_", "")
+        print(f"\n  {label} by status:")
+        for status in ["correct", "incorrect", "unanswered"]:
+            vals = [r[key] for r in records
+                    if r["status"] == status and r[key] is not None]
+            if vals:
+                print(f"    {status:<12}  mean={np.mean(vals):+.4f}  "
+                      f"std={np.std(vals):.4f}  "
+                      f"range=[{min(vals):+.4f}, {max(vals):+.4f}]")
 
     print(f"\n  Benchmark accuracies:")
-    print(f"    maj@n:   {results.get('maj_accuracy', 'N/A')}")
-    print(f"    think@n: {results.get('think_accuracy', 'N/A')}")
-    print(f"    pass@n:  {results.get('pass_at_n', 'N/A')}")
-    print(f"{'='*50}")
+    print(f"    maj@n:    {results.get('maj_accuracy', 'N/A')}")
+    print(f"    pass@n:   {results.get('pass_at_n',    'N/A')}")
+    think = results.get("think_at_n", {})
+    for mode, acc in think.items():
+        print(f"    think@n [{mode}]:  {acc}")
+    print(f"{'='*55}")
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Main
+# ──────────────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze DTR results")
-    parser.add_argument("--results", required=True, help="Path to results.json")
-    parser.add_argument("--output-dir", default=None, help="Output directory for plots")
+    parser = argparse.ArgumentParser(description="Analyze think@n results.json")
+    parser.add_argument("--results",    required=True, help="Path to results.json")
+    parser.add_argument("--output-dir", default=None,  help="Output directory for plots")
     args = parser.parse_args()
 
-    results = load_results(args.results)
+    results    = load_results(args.results)
     output_dir = args.output_dir or os.path.join(os.path.dirname(args.results), "analysis")
     os.makedirs(output_dir, exist_ok=True)
 
     print(f"Analyzing: {args.results}")
-    print(f"Plots will be saved to: {output_dir}")
+    print(f"Output:    {output_dir}")
 
-    records = classify_samples(results)
-    print_summary(records, results)
+    records, score_keys = classify_samples(results)
+
+    if not score_keys:
+        print("\nWARNING: No score columns found in sample_extractions.")
+        print("Re-run run_think_at_n.py with the updated code to get per-sample scores.")
+        score_keys = ["score_dtr"] if any("dtr_scores" in p for p in results["per_problem"]) else []
+
+    print_summary(records, score_keys, results)
+    corr_table = compute_correlations(records, score_keys)
 
     print(f"\nGenerating plots...")
-    plot_dtr_distribution(records, output_dir)
-    plot_dtr_violin(records, output_dir)
-    plot_dtr_strip(records, output_dir)
-    plot_accuracy_by_dtr_threshold(records, output_dir)
-    plot_per_problem_dtr(records, output_dir)
-    plot_think_vs_maj(results, output_dir)
+    for key in score_keys:
+        plot_score_distribution(records, key, output_dir)
+        plot_score_violin(records, key, output_dir)
+        plot_score_vs_correctness_scatter(records, key, output_dir)
+        plot_per_problem_score(records, key, output_dir)
 
-    print(f"\nDone! All plots saved to {output_dir}/")
+    plot_correlation_comparison(corr_table, output_dir)
+
+    print(f"\nDone! Plots saved to {output_dir}/")
 
 
 if __name__ == "__main__":

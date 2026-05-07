@@ -88,6 +88,22 @@ class Qwen3Helper:
             logits = self.lm_head(normed).float()
         return torch.softmax(logits, dim=-1)
 
+    def get_final_logits(self, input_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Lightweight forward pass — final-layer logits only, no hidden states.
+        Much cheaper than get_layer_hidden_states() since we skip intermediate
+        layer extraction. Used for log-probability and self-certainty scoring.
+
+        Args:
+            input_ids: [B, T] on self.device
+
+        Returns:
+            logits: [B, T, vocab_size] in float32
+        """
+        with torch.no_grad():
+            outputs = self.model(input_ids)
+        return outputs.logits.float()
+
     def tokenize(self, text: str) -> torch.Tensor:
         """Tokenize text and return input_ids on device."""
         inputs = self.tokenizer(text, return_tensors="pt")

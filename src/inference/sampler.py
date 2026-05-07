@@ -19,6 +19,7 @@ class GeneratedSample:
     generated_token_ids: List[int]
     thinking_text: Optional[str] = None
     answer_text: Optional[str] = None
+    token_logprobs: Optional[List[float]] = None  # per-token log P(y_t) from vLLM
 
 
 def generate_samples_vllm(
@@ -50,12 +51,22 @@ def generate_samples_vllm(
     """
     from vllm import LLM, SamplingParams
 
-    llm = LLM(model=model_name, dtype="bfloat16", max_model_len=max_tokens + 2048)
+    # Use HF_HOME as download dir so vLLM downloads model to network storage,
+    # not to the compute node's tiny local /var/tmp disk
+    download_dir = os.environ.get("HF_HOME", None)
+
+    llm = LLM(
+        model=model_name,
+        dtype="bfloat16",
+        max_model_len=max_tokens + 2048,
+        download_dir=download_dir,
+    )
     sampling_params = SamplingParams(
         n=n_samples,
         temperature=temperature,
         top_p=top_p,
         max_tokens=max_tokens,
+        logprobs=1,   # return log prob of the sampled token at each step
     )
 
     # Open output file if streaming is requested (append mode to handle restarts)
@@ -79,6 +90,17 @@ def generate_samples_vllm(
                 generated_text = completion.text
                 thinking_text, answer_text = _split_thinking(generated_text)
 
+                # Extract per-token log probs of the sampled tokens
+                token_logprobs = None
+                if completion.logprobs:
+                    token_logprobs = []
+                    for t_idx, lp_dict in enumerate(completion.logprobs):
+                        tid = completion.token_ids[t_idx]
+                        if lp_dict and tid in lp_dict:
+                            token_logprobs.append(lp_dict[tid].logprob)
+                        else:
+                            token_logprobs.append(0.0)
+
                 sample = GeneratedSample(
                     problem_id=prompt_info["id"],
                     sample_idx=idx,
@@ -88,6 +110,7 @@ def generate_samples_vllm(
                     generated_token_ids=list(completion.token_ids),
                     thinking_text=thinking_text,
                     answer_text=answer_text,
+                    token_logprobs=token_logprobs,
                 )
                 prompt_samples.append(sample)
 
@@ -132,10 +155,39 @@ def save_samples(samples: List[List[GeneratedSample]], output_dir: str):
 
 
 def load_samples(path: str) -> List[GeneratedSample]:
-    """Load generated samples from JSONL file."""
+    """Load generated samples from JSONL file.
+
+    Handles corrupted lines where two JSON objects were concatenated without
+    a newline (can happen when streaming writes overlap on job restart).
+    Uses raw_decode to extract all valid JSON objects from each line.
+    """
+    decoder = json.JSONDecoder()
     samples = []
+    n_recovered = 0
     with open(path) as f:
-        for line in f:
-            data = json.loads(line)
-            samples.append(GeneratedSample(**data))
+        for lineno, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            pos = 0
+            objects_on_line = 0
+            while pos < len(line):
+                # Skip whitespace between concatenated objects
+                while pos < len(line) and line[pos] in ' \t\r\n':
+                    pos += 1
+                if pos >= len(line):
+                    break
+                try:
+                    data, end = decoder.raw_decode(line, pos)
+                    samples.append(GeneratedSample(**data))
+                    objects_on_line += 1
+                    pos = end
+                except json.JSONDecodeError as e:
+                    print(f"  Warning: skipping malformed JSON on line {lineno} at pos {pos}: {e}")
+                    break
+            if objects_on_line > 1:
+                n_recovered += objects_on_line - 1
+
+    if n_recovered:
+        print(f"  Note: recovered {n_recovered} extra object(s) from concatenated lines in {path}")
     return samples

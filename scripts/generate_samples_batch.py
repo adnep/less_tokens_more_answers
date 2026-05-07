@@ -78,6 +78,19 @@ def main():
         help="Resume from this problem ID (skip all problems before it). "
              "If not set, auto-detects completed problems from existing output file.",
     )
+    parser.add_argument(
+        "--problem-ids",
+        nargs="+",
+        default=None,
+        metavar="ID",
+        help="Only generate for these specific problem IDs (e.g. arith_0 arith_4). "
+             "Default: all problems in the benchmark.",
+    )
+    parser.add_argument(
+        "--terse",
+        action="store_true",
+        help="Append terse-reasoning instruction to each prompt (caveman ablation).",
+    )
     args = parser.parse_args()
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -92,6 +105,9 @@ def main():
     print(f"Temperature: {args.temperature}")
     print(f"Top-p:       {args.top_p}")
     print(f"Output dir:  {args.output_dir}")
+    print(f"Terse:       {args.terse}")
+    if args.problem_ids:
+        print(f"Problems:    {args.problem_ids} (filtered)")
     print(f"{'='*60}")
     print(f"Samples will be written to disk as they're generated.")
     print(f"Monitor with: tail -f {args.output_dir}/generated_samples.jsonl")
@@ -113,10 +129,22 @@ def main():
     # Format prompts
     print(f"\nFormatting prompts...")
     prompts = [
-        {"id": p.id, "text": format_prompt(p)}
+        {"id": p.id, "text": format_prompt(p, terse=args.terse)}
         for p in problems
     ]
     print(f"  ✓ {len(prompts)} prompts ready")
+
+    # Filter to specific problem IDs if requested
+    if args.problem_ids:
+        id_set = set(args.problem_ids)
+        prompts = [p for p in prompts if p["id"] in id_set]
+        missing = id_set - {p["id"] for p in prompts}
+        if missing:
+            print(f"  ⚠ Problem IDs not found in benchmark: {sorted(missing)}")
+        print(f"  → Filtered to {len(prompts)} problem(s): {[p['id'] for p in prompts]}")
+        if not prompts:
+            print("ERROR: No matching problems found.")
+            return 1
 
     # Setup output file
     os.makedirs(args.output_dir, exist_ok=True)
@@ -124,25 +152,25 @@ def main():
 
     # Find already-completed problems from existing output file
     completed_ids = set()
-    # samples_written = 0
-    # if os.path.exists(output_file):
-    #     from collections import Counter
-    #     id_counts = Counter()
-    #     with open(output_file) as f:
-    #         for line in f:
-    #             line = line.strip()
-    #             if not line:
-    #                 continue
-    #             try:
-    #                 d = json.loads(line)
-    #                 id_counts[d["problem_id"]] += 1
-    #                 samples_written += 1
-    #             except json.JSONDecodeError:
-    #                 pass
-    #     # A problem is "complete" if it already has n_samples samples
-    #     completed_ids = {pid for pid, cnt in id_counts.items() if cnt >= args.n_samples}
-    #     print(f"\n  Found existing file with {samples_written} samples "
-    #           f"({len(completed_ids)} fully completed problems). Appending new samples.")
+    samples_written = 0
+    if os.path.exists(output_file):
+        from collections import Counter
+        id_counts = Counter()
+        with open(output_file) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    d = json.loads(line)
+                    id_counts[d["problem_id"]] += 1
+                    samples_written += 1
+                except json.JSONDecodeError:
+                    pass
+        # A problem is "complete" if it already has n_samples samples
+        completed_ids = {pid for pid, cnt in id_counts.items() if cnt >= args.n_samples}
+        print(f"\n  Found existing file with {samples_written} samples "
+              f"({len(completed_ids)} fully completed problems). Appending new samples.")
 
     # Filter prompts: skip completed problems, optionally start from a given ID
     if args.start_from:

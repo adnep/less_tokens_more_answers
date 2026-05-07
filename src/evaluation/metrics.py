@@ -10,12 +10,14 @@ from src.evaluation.voting import normalize_numeric_answer
 def _normalize_for_comparison(s: str) -> str:
     """Normalize answer for comparison.
 
+    - Lowercases (so "Yes"/"yes"/"YES" all compare equal for yes_no datasets;
+      safe for integers and A/B/C/D choices which are normalised upstream)
     - Strips leading/trailing whitespace
     - Collapses all internal whitespace (LaTeX spaces are semantically meaningless:
       '\\frac{9 \\sqrt{23}}{23}' == '\\frac{9\\sqrt{23}}{23}')
     - Strips leading zeros from pure integers
     """
-    s = str(s).strip()
+    s = str(s).strip().lower()
     # Remove all internal whitespace so LaTeX spacing variants compare equal
     s = re.sub(r'\s+', '', s)
     normalized = normalize_numeric_answer(s)
