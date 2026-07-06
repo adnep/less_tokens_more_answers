@@ -3,3 +3,5 @@
 core
 outputs
 datasets
+tests
+*.tex

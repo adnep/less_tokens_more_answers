@@ -30,6 +30,7 @@ def generate_samples_vllm(
     top_p: float = 0.95,
     max_tokens: int = 32768,
     output_file: Optional[str] = None,
+    use_chat_template: bool = True,
 ) -> List[List[GeneratedSample]]:
     """
     Generate n_samples per prompt using vLLM, with optional streaming to disk.
@@ -44,12 +45,17 @@ def generate_samples_vllm(
         output_file: if provided, write samples to this JSONL file as they're generated.
                      This enables streaming: samples are written immediately after each
                      problem's generation, not collected in memory first.
+        use_chat_template: if True (default), wrap each prompt in the model's chat
+                     template before passing to vLLM. For Qwen3 thinking models this
+                     is required to trigger the <think>...</think> reasoning chain —
+                     without it the model answers directly as a base model.
 
     Returns:
         List of lists: outer list per prompt, inner list of GeneratedSample.
         If output_file is provided, samples are also written to disk incrementally.
     """
     from vllm import LLM, SamplingParams
+    from transformers import AutoTokenizer
 
     # Use HF_HOME as download dir so vLLM downloads model to network storage,
     # not to the compute node's tiny local /var/tmp disk
@@ -61,6 +67,12 @@ def generate_samples_vllm(
         max_model_len=max_tokens + 2048,
         download_dir=download_dir,
     )
+
+    # Load tokenizer for chat template application (if needed)
+    hf_tokenizer = None
+    if use_chat_template:
+        hf_tokenizer = AutoTokenizer.from_pretrained(model_name)
+        print(f"  Chat template enabled — prompts will be wrapped before generation.")
     sampling_params = SamplingParams(
         n=n_samples,
         temperature=temperature,
@@ -83,6 +95,17 @@ def generate_samples_vllm(
         for i, prompt_info in enumerate(prompts):
             # Generate n_samples for this problem
             prompt_text = prompt_info["text"]
+            if use_chat_template and hf_tokenizer is not None:
+                # Wrap in chat template so the model starts in thinking mode.
+                # add_generation_prompt=True appends the assistant turn opener,
+                # which for Qwen3 includes the <think>\n prefix that triggers
+                # the reasoning chain.
+                messages = [{"role": "user", "content": prompt_text}]
+                prompt_text = hf_tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
             output = llm.generate([prompt_text], sampling_params)[0]
 
             prompt_samples = []

@@ -1,5 +1,5 @@
 """
-Trace inspector: per-token SC / NLL coloring of reasoning traces as HTML.
+Trace inspector: per-token SC / LP / neg-entropy coloring of reasoning traces as HTML.
 
 For each selected sample generates a self-contained HTML file where every
 token is coloured by its metric value (red = low/uncertain, green = high/certain).
@@ -7,27 +7,28 @@ Top drop and rise events are annotated with underlines + superscript markers so
 you can immediately see what the model was writing at those moments.
 
 Modes:
-  --metric sc   self-certainty (needs model forward pass)
-  --metric nll  stored token log-probs (no model pass — instant)
+  --metric sc          self-certainty KL(u‖p_t) ∈ [0,∞) (needs model forward pass)
+  --metric neg_entropy negative entropy -H(p_t) ∈ (-∞,0] (needs model forward pass)
+  --metric lp          stored token log-probs (no model pass — instant)
+  --metric both        embed SC + LP in one file with a toggle button
 
 Usage:
-    # NLL (fast, no GPU needed):
-    python scripts/trace_inspector.py \\
-        --samples-file outputs/arithmetic_stress_test_full/generated_samples.jsonl \\
-        --benchmark arithmetic_stress_test \\
-        --model /path/to/Qwen3-4B-Thinking-2507 \\
-        --problem-id hmmt_7 \\
-        --metric nll
-
-    # SC (needs GPU):
+    # LP (fast, no GPU needed):
     python scripts/trace_inspector.py \\
         --samples-file outputs/hmmt_samples16/generated_samples.jsonl \\
         --benchmark hmmt2025 \\
         --model /path/to/Qwen3-4B-Thinking-2507 \\
         --problem-id hmmt_7 \\
-        --metric sc
+        --metric lp
 
-    # Inspect specific samples (default: auto first correct + first incorrect):
+    # Negative entropy (needs GPU):
+    python scripts/trace_inspector.py ... --metric neg_entropy
+
+    # Both SC + LP metrics in one file (needs GPU for SC):
+    python scripts/trace_inspector.py ... --metric both
+
+    # Inspect specific samples (default: auto first correct + first incorrect
+    # + fewest-token sample):
     python scripts/trace_inspector.py ... --sample-idx 2 7 11
 
 Output: {output_dir}/{metric}_trace_{problem_id}_s{sample_idx}.html
@@ -56,13 +57,36 @@ from src.evaluation.metrics import _normalize_for_comparison
 SLICE_SIZE   = 128
 STATUS_COLOR = {"correct": "#27ae60", "incorrect": "#e74c3c", "unknown": "#7f8c8d"}
 
+# Human-readable metadata per metric key
+METRIC_META = {
+    "lp":         {"name": "log-prob",       "label": "log P(y_t)"},
+    "sc":          {"name": "self-certainty", "label": "SC = KL(u‖p_t)"},
+    "neg_entropy": {"name": "neg-entropy",    "label": "-H(p_t)"},
+}
+
+# Event underline colours per metric
+# SC          → solid red/green
+# LP          → dashed orange/blue
+# neg_entropy → dotted purple/teal
+METRIC_COLORS = {
+    "sc":          {"drop": "#e74c3c", "rise": "#27ae60", "style": "solid"},
+    "lp":         {"drop": "#e67e22", "rise": "#3498db", "style": "dashed"},
+    "neg_entropy": {"drop": "#8e44ad", "rise": "#1abc9c", "style": "dotted"},
+}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Metric computation
 # ─────────────────────────────────────────────────────────────────────────────
 
 def compute_sc(helper, sample) -> np.ndarray:
-    """Per-token self-certainty (negative entropy). Needs model."""
+    """
+    Per-token Self-Certainty (Kang et al., 2025):
+        SC(t) = KL(u ‖ p_t) = -log|V| - (1/|V|) ∑_v log p_t(v)
+    Range: [0, ∞).  Higher = more certain.  Needs model forward pass.
+    """
+    import math
+
     prompt_ids = torch.tensor([sample.prompt_token_ids], device=helper.device)
     gen_ids    = torch.tensor([sample.generated_token_ids], device=helper.device)
     T_gen      = gen_ids.shape[1]
@@ -72,24 +96,65 @@ def compute_sc(helper, sample) -> np.ndarray:
     with torch.no_grad():
         all_logits = helper.model(full_ids).logits
 
-    ent_arr = np.empty(T_gen, dtype=np.float32)
+    V     = all_logits.shape[-1]
+    log_v = math.log(V)
+
+    sum_log_p = np.zeros(T_gen, dtype=np.float64)
     for s in range(0, T_gen, SLICE_SIZE):
         e  = min(s + SLICE_SIZE, T_gen)
         sl = all_logits[0, prompt_len + s : prompt_len + e].float()
         lp = torch.log_softmax(sl, dim=-1)
-        ent_arr[s:e] = -(lp.exp() * lp).sum(dim=-1).cpu().numpy()
+        sum_log_p[s:e] += lp.sum(dim=-1).cpu().numpy()
         del sl, lp
 
     del all_logits
     torch.cuda.empty_cache()
-    return -ent_arr   # negative entropy = self-certainty
+    return (-log_v - sum_log_p / V).astype(np.float32)
 
 
-def get_metric(helper, sample, use_nll: bool):
-    if use_nll:
+def compute_neg_entropy(helper, sample) -> np.ndarray:
+    """
+    Per-token negative entropy: -H(p_t) = ∑_v p_t(v) log p_t(v).
+    Range: (-∞, 0].  Closer to 0 = more certain.  Needs model forward pass.
+    """
+    prompt_ids = torch.tensor([sample.prompt_token_ids], device=helper.device)
+    gen_ids    = torch.tensor([sample.generated_token_ids], device=helper.device)
+    T_gen      = gen_ids.shape[1]
+    prompt_len = prompt_ids.shape[1]
+    full_ids   = torch.cat([prompt_ids, gen_ids], dim=1)
+
+    with torch.no_grad():
+        all_logits = helper.model(full_ids).logits
+
+    entropy_arr = np.empty(T_gen, dtype=np.float32)
+    for s in range(0, T_gen, SLICE_SIZE):
+        e   = min(s + SLICE_SIZE, T_gen)
+        sl  = all_logits[0, prompt_len + s : prompt_len + e].float()
+        lp  = torch.log_softmax(sl, dim=-1)
+        ent = -(lp.exp() * lp).sum(dim=-1).cpu().numpy()
+        entropy_arr[s:e] = ent
+        del sl, lp, ent
+
+    del all_logits
+    torch.cuda.empty_cache()
+    return -entropy_arr   # negative entropy
+
+
+def get_metric_arrays(helper, sample, metric_keys: list) -> dict:
+    """
+    Compute requested metrics for one sample.
+    Returns {metric_key: np.ndarray or None}.
+    Each model-based metric is computed at most once.
+    """
+    result = {}
+    if "lp" in metric_keys:
         lps = sample.token_logprobs
-        return np.array(lps, dtype=np.float32) if lps else None
-    return compute_sc(helper, sample)
+        result["lp"] = np.array(lps, dtype=np.float32) if lps else None
+    if "sc" in metric_keys:
+        result["sc"] = compute_sc(helper, sample)
+    if "neg_entropy" in metric_keys:
+        result["neg_entropy"] = compute_neg_entropy(helper, sample)
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -166,10 +231,191 @@ def trajectory_plot_b64(raw, smoothed, drops, rises, metric_label, title):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Per-metric data bundle
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_metric_bundle(metric_key, metric_arr, window, top_events,
+                        sample, token_texts, problem_id):
+    """Compute everything needed to render one metric in the HTML."""
+    HALO = 5
+    smoothed     = rolling_mean(metric_arr, window)
+    drops, rises = find_events(smoothed, top_events)
+    vmin, vmax   = float(metric_arr.min()), float(metric_arr.max())
+
+    drop_halo = set()
+    rise_halo = set()
+    for d in drops:
+        drop_halo.update(range(max(0, d - HALO), min(len(metric_arr), d + HALO + 1)))
+    for r in rises:
+        rise_halo.update(range(max(0, r - HALO), min(len(metric_arr), r + HALO + 1)))
+
+    drop_label = {d: i + 1 for i, d in enumerate(drops)}
+    rise_label = {r: i + 1 for i, r in enumerate(rises)}
+
+    meta  = METRIC_META[metric_key]
+    title = (f"{problem_id} · {meta['name']} · "
+             f"mean={metric_arr.mean():.4f}  window={window}")
+    plot_b64 = trajectory_plot_b64(
+        metric_arr, smoothed, drops, rises, meta["label"], title
+    )
+
+    # Pre-compute per-token background colour strings
+    bg_colors = [val_to_rgba(v, vmin, vmax) for v in metric_arr]
+
+    # Event table rows (HTML)
+    mc    = METRIC_COLORS[metric_key]
+    rows  = []
+    for label, positions, color in [
+        (f"▼ Drop", drops, mc["drop"]),
+        (f"▲ Rise", rises, mc["rise"]),
+    ]:
+        for rank, pos in enumerate(positions, 1):
+            ctx_start = max(0, pos - 8)
+            ctx_end   = min(len(token_texts), pos + 12)
+            ctx = html_lib.escape(
+                "".join(token_texts[ctx_start:ctx_end]).replace("\n", " ")
+            )
+            sm_before = float(smoothed[pos])
+            sm_after  = float(smoothed[min(pos + 1, len(smoothed) - 1)])
+            delta     = sm_after - sm_before
+            raw_at    = float(metric_arr[pos])
+            rows.append(
+                f'<tr>'
+                f'<td style="color:{color};font-weight:bold">{label} #{rank}</td>'
+                f'<td>token {pos}</td>'
+                f'<td>'
+                f'<span title="Rolling-mean of raw values over the smoothing window">'
+                f'smoothed: {sm_before:.4f} → {sm_after:.4f} <em>(Δ={delta:+.4f})</em>'
+                f'</span>'
+                f'<br><span style="color:#888;font-size:10px">'
+                f'raw at token: {raw_at:.4f}</span>'
+                f'</td>'
+                f'<td style="font-family:monospace;font-size:11px">…{ctx}…</td>'
+                f'</tr>'
+            )
+
+    gradient = colorbar_gradient(vmin, vmax)
+
+    return {
+        "key":        metric_key,
+        "name":       meta["name"],
+        "label":      meta["label"],
+        "arr":        metric_arr,
+        "smoothed":   smoothed,
+        "drops":      drops,
+        "rises":      rises,
+        "drop_halo":  drop_halo,
+        "rise_halo":  rise_halo,
+        "drop_label": drop_label,
+        "rise_label": rise_label,
+        "vmin":       vmin,
+        "vmax":       vmax,
+        "bg_colors":  bg_colors,
+        "plot_b64":   plot_b64,
+        "event_rows": rows,
+        "gradient":   gradient,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HTML builder
 # ─────────────────────────────────────────────────────────────────────────────
 
-_CSS = """
+def build_html(sample, bundles: dict, token_texts, status,
+               ref_answer, extracted, window, problem_id):
+    """
+    Build a self-contained HTML file.
+
+    bundles: dict mapping metric_key → bundle dict from build_metric_bundle().
+             May contain one or two keys ("lp", "sc").
+             When two are present a toggle button is shown.
+    """
+    status_color  = STATUS_COLOR.get(status, "#7f8c8d")
+    metric_keys   = list(bundles.keys())   # ordered: first is the default shown
+    multi         = len(metric_keys) > 1
+    primary       = metric_keys[0]         # shown on page load
+
+    # Find </think> boundary
+    think_end_token = None
+    cumtext = ""
+    for i, (tid, txt) in enumerate(zip(sample.generated_token_ids, token_texts)):
+        cumtext += txt
+        if "</think>" in cumtext and think_end_token is None:
+            think_end_token = i
+
+    # ── Build token spans ────────────────────────────────────────────────────
+    spans = []
+    for i, txt in enumerate(token_texts):
+        safe_txt = html_lib.escape(txt)
+
+        # Classes: event halos for ALL metrics (hidden/shown via CSS)
+        classes = []
+        for mk, b in bundles.items():
+            if i in b["drop_halo"]: classes.append(f"ev-drop-{mk}")
+            if i in b["rise_halo"]: classes.append(f"ev-rise-{mk}")
+        cls = f' class="{" ".join(classes)}"' if classes else ""
+
+        # Background colour for primary metric (default style)
+        primary_bg = bundles[primary]["bg_colors"][i]
+
+        # data-bg-{metric} for JS switching, data-val for tooltip
+        data_parts = []
+        for mk, b in bundles.items():
+            data_parts.append(f'data-bg-{mk}="{b["bg_colors"][i]}"')
+
+        # Tooltip always shows all available metrics
+        tip_parts = [f"pos={i}"]
+        for mk, b in bundles.items():
+            tip_parts.append(
+                f'{mk.upper()}  raw={b["arr"][i]:.4f}  sm={b["smoothed"][i]:.4f}'
+            )
+        tooltip = " | ".join(tip_parts)
+        data_parts.append(f'data-val="{tooltip}"')
+
+        data_str = " ".join(data_parts)
+        span = (f'<span{cls} style="background:{primary_bg}" {data_str}>'
+                f'{safe_txt}</span>')
+
+        # Superscript markers (all metrics, always rendered — visibility via CSS)
+        for mk, b in bundles.items():
+            mc = METRIC_COLORS[mk]
+            if i in b["drop_label"]:
+                span += (f'<sup class="ev-lbl drop-lbl-{mk}" '
+                         f'style="color:{mc["drop"]}">▼{b["drop_label"][i]}</sup>')
+            if i in b["rise_label"]:
+                span += (f'<sup class="ev-lbl rise-lbl-{mk}" '
+                         f'style="color:{mc["rise"]}">▲{b["rise_label"][i]}</sup>')
+
+        if i == think_end_token:
+            span += '<span class="think-end-marker">&lt;/think&gt;</span>'
+
+        spans.append(span)
+
+    trace_body = "".join(spans)
+
+    # ── CSS ──────────────────────────────────────────────────────────────────
+    # Build per-metric underline rules
+    underline_css = ""
+    for mk, mc in METRIC_COLORS.items():
+        style = mc["style"]
+        underline_css += f"""
+.ev-drop-{mk} {{ text-decoration: underline {style};
+                 text-decoration-color:{mc['drop']}; text-decoration-thickness:2px; }}
+.ev-rise-{mk} {{ text-decoration: underline {style};
+                 text-decoration-color:{mc['rise']}; text-decoration-thickness:2px; }}"""
+
+    # Hide inactive metric's underlines and superscripts via wrapper class
+    hide_css = ""
+    for mk in metric_keys:
+        for other in metric_keys:
+            if other != mk:
+                hide_css += f"""
+.active-{mk} .ev-drop-{other},
+.active-{mk} .ev-rise-{other} {{ text-decoration: none !important; }}
+.active-{mk} .drop-lbl-{other},
+.active-{mk} .rise-lbl-{other} {{ display: none; }}"""
+
+    css = f"""
 body {{ font-family: Georgia,serif; max-width: 1150px; margin: 20px auto;
        background: #f4f4f4; color: #2c3e50; }}
 .header {{ background:#fff; border:1px solid #ddd; padding:16px 20px;
@@ -183,7 +429,7 @@ body {{ font-family: Georgia,serif; max-width: 1150px; margin: 20px auto;
 .legend {{ display:flex; gap:22px; align-items:center;
           font-size:12px; margin-bottom:10px; }}
 .colorbar {{ width:220px; height:18px;
-            background:linear-gradient(to right,{gradient});
+            background:linear-gradient(to right,{bundles[primary]["gradient"]});
             border:1px solid #aaa; border-radius:3px; }}
 .cb-labels {{ display:flex; justify-content:space-between;
              font-size:10px; color:#777; width:220px; }}
@@ -192,130 +438,156 @@ body {{ font-family: Georgia,serif; max-width: 1150px; margin: 20px auto;
          line-height:2.1; background:#fff; padding:22px;
          border:1px solid #ddd; border-radius:8px;
          white-space:pre-wrap; word-wrap:break-word; }}
-/* event underlines */
-.ev-drop {{ text-decoration:underline;
-           text-decoration-color:#e74c3c; text-decoration-thickness:2px; }}
-.ev-rise  {{ text-decoration:underline;
-            text-decoration-color:#27ae60; text-decoration-thickness:2px; }}
-/* event superscript labels */
 .ev-lbl {{ font-size:8px; font-weight:bold; vertical-align:super;
           margin-left:1px; line-height:0; }}
-.drop-lbl {{ color:#c0392b; }}
-.rise-lbl {{ color:#27ae60; }}
-/* </think> boundary marker */
 .think-end-marker {{ display:inline-block; background:#2c3e50; color:#fff;
                     font-size:10px; padding:1px 6px; border-radius:3px;
                     margin:0 4px; vertical-align:middle; }}
+/* metric toggle */
+.metric-switcher {{ display:flex; gap:8px; margin-bottom:14px; align-items:center; }}
+.metric-switcher span {{ font-size:13px; color:#555; margin-right:4px; }}
+.metric-btn {{
+  padding:6px 18px; border:2px solid #2c3e50; border-radius:20px;
+  background:#fff; color:#2c3e50; font-size:13px; cursor:pointer;
+  transition:all 0.15s;
+}}
+.metric-btn.active {{ background:#2c3e50; color:#fff; }}
+.metric-btn:hover:not(.active) {{ background:#ecf0f1; }}
+{underline_css}
+{hide_css}
 """
 
+    # ── Metric toggle markup (hidden when single metric) ─────────────────────
+    switcher_html = ""
+    if multi:
+        buttons = ""
+        for i, mk in enumerate(metric_keys):
+            active = "active" if mk == primary else ""
+            buttons += (f'<button class="metric-btn {active}" '
+                        f'data-metric="{mk}" onclick="switchMetric(\'{mk}\')">'
+                        f'{METRIC_META[mk]["name"].upper()}</button>')
+        switcher_html = (f'<div class="metric-switcher">'
+                         f'<span>Metric:</span>{buttons}</div>')
 
-def build_html(sample, metric_arr, smoothed, drops, rises,
-               token_texts, status, ref_answer, extracted,
-               metric_name, metric_label, window, problem_id):
+    # ── Trajectory plots (one per metric, non-primary hidden) ────────────────
+    plots_html = ""
+    for mk, b in bundles.items():
+        display = "" if mk == primary else ' style="display:none"'
+        vmin_str = f'{b["vmin"]:.3f}'
+        vmax_str = f'{b["vmax"]:.3f}'
+        mc = METRIC_COLORS[mk]
+        plots_html += f"""
+<div class="plot-wrap" id="plot-{mk}"{display}>
+  <div class="legend">
+    <div>
+      <div class="colorbar" style="background:linear-gradient(to right,{b['gradient']})"></div>
+      <div class="cb-labels">
+        <span style="color:#c0392b">&#x25A0; {vmin_str} low (uncertain)</span>
+        <span style="color:#27ae60">high (certain) {vmax_str} &#x25A0;</span>
+      </div>
+    </div>
+    <div class="events-key">
+      <p><span style="color:{mc['drop']}">▼ red vertical lines + underline</span>
+         = sharpest drops</p>
+      <p><span style="color:{mc['rise']}">▲ green vertical lines + underline</span>
+         = sharpest rises</p>
+    </div>
+    <span style="color:#888;font-size:11px">&#x1F4CC; Hover any token to see exact values</span>
+  </div>
+  <img src="data:image/png;base64,{b['plot_b64']}" alt="{mk} trajectory">
+</div>"""
 
-    vmin, vmax = float(metric_arr.min()), float(metric_arr.max())
+    # ── Event tables (one per metric, non-primary hidden) ────────────────────
+    tables_html = ""
+    for mk, b in bundles.items():
+        display = "" if mk == primary else ' style="display:none"'
+        event_table = (
+            '<table border="0" cellpadding="5" cellspacing="0" style="'
+            'width:100%;border-collapse:collapse;font-size:12px;'
+            'background:#fff;border:1px solid #ddd;border-radius:8px;margin-bottom:14px">'
+            '<thead><tr style="background:#ecf0f1">'
+            '<th align="left">Event</th><th align="left">Position</th>'
+            '<th align="left">Value change (smoothed · raw)</th>'
+            '<th align="left">Context (±tokens)</th>'
+            '</tr></thead><tbody>'
+            + "\n".join(b["event_rows"])
+            + "</tbody></table>"
+        )
+        tables_html += f'<div id="events-{mk}"{display}>{event_table}</div>'
 
-    HALO = 5   # tokens before+after event that get the underline
-    drop_halo = set()
-    rise_halo = set()
-    for d in drops:
-        drop_halo.update(range(max(0, d - HALO), min(len(metric_arr), d + HALO + 1)))
-    for r in rises:
-        rise_halo.update(range(max(0, r - HALO), min(len(metric_arr), r + HALO + 1)))
+    # ── Header stats ─────────────────────────────────────────────────────────
+    stat_parts = []
+    for mk, b in bundles.items():
+        stat_parts.append(
+            f'{METRIC_META[mk]["name"]}: mean={b["arr"].mean():.4f} '
+            f'[{b["vmin"]:.4f}, {b["vmax"]:.4f}]'
+        )
+    stats_str = "  |  ".join(stat_parts)
 
-    drop_label = {d: i + 1 for i, d in enumerate(drops)}
-    rise_label = {r: i + 1 for i, r in enumerate(rises)}
+    # ── JS ───────────────────────────────────────────────────────────────────
+    js = """
+(function() {
+  // ── Metric switcher ──────────────────────────────────────────────────────
+  window.switchMetric = function(m) {
+    // 1. Swap token background colours
+    var spans = document.querySelectorAll('#trace-div span[data-val]');
+    spans.forEach(function(s) {
+      var bg = s.getAttribute('data-bg-' + m);
+      if (bg) s.style.background = bg;
+    });
 
-    status_color = STATUS_COLOR.get(status, "#7f8c8d")
+    // 2. Swap event underlines via wrapper class
+    var traceDiv = document.getElementById('trace-div');
+    traceDiv.className = traceDiv.className.replace(/active-\\S+/, '').trim();
+    traceDiv.classList.add('active-' + m);
 
-    # Find where </think> ends in the token sequence (for visual boundary)
-    think_end_token = None
-    cumtext = ""
-    for i, (tid, txt) in enumerate(zip(sample.generated_token_ids, token_texts)):
-        cumtext += txt
-        if "</think>" in cumtext and think_end_token is None:
-            think_end_token = i
+    // 3. Toggle plots
+    document.querySelectorAll('.plot-wrap[id^="plot-"]').forEach(function(el) {
+      el.style.display = (el.id === 'plot-' + m) ? 'block' : 'none';
+    });
 
-    title_str = (f"{problem_id} · s{sample.sample_idx} · {status.upper()} · "
-                 f"mean={metric_arr.mean():.4f}  window={window}")
-    plot_b64 = trajectory_plot_b64(metric_arr, smoothed, drops, rises,
-                                   metric_label, title_str)
+    // 4. Toggle event tables
+    document.querySelectorAll('div[id^="events-"]').forEach(function(el) {
+      el.style.display = (el.id === 'events-' + m) ? 'block' : 'none';
+    });
 
-    # ── Build token spans ────────────────────────────────────────────────────
-    spans = []
-    for i, (txt, val) in enumerate(zip(token_texts, metric_arr)):
-        safe_txt = html_lib.escape(txt)
-        bg = val_to_rgba(val, vmin, vmax)
+    // 5. Update button states
+    document.querySelectorAll('.metric-btn').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.metric === m);
+    });
+  };
 
-        classes = []
-        if i in drop_halo: classes.append("ev-drop")
-        if i in rise_halo:  classes.append("ev-rise")
-        cls = f' class="{" ".join(classes)}"' if classes else ""
+  // ── Token hover tooltip ──────────────────────────────────────────────────
+  var tip  = document.getElementById('tok-tip');
+  var wrap = document.getElementById('trace-div');
+  if (!wrap) return;
 
-        # Show both raw and smoothed so there's no confusion with the event table
-        tooltip = f'pos={i} | raw={val:.4f} | smoothed={smoothed[i]:.4f}'
-        span = f'<span{cls} style="background:{bg}" data-val="{tooltip}">{safe_txt}</span>'
+  wrap.addEventListener('mousemove', function(e) {
+    var el = e.target;
+    while (el && el !== wrap) {
+      if (el.dataset && el.dataset.val) {
+        tip.textContent = el.dataset.val;
+        tip.style.display = 'block';
+        var x = e.clientX + 14;
+        var y = e.clientY - 36;
+        var tipW = tip.offsetWidth;
+        if (x + tipW > window.innerWidth - 10) x = e.clientX - tipW - 14;
+        tip.style.left = x + 'px';
+        tip.style.top  = y + 'px';
+        return;
+      }
+      el = el.parentElement;
+    }
+    tip.style.display = 'none';
+  });
 
-        # Superscript event marker AT the event onset token
-        if i in drop_label:
-            span += f'<sup class="ev-lbl drop-lbl">▼{drop_label[i]}</sup>'
-        if i in rise_label:
-            span += f'<sup class="ev-lbl rise-lbl">▲{rise_label[i]}</sup>'
+  wrap.addEventListener('mouseleave', function() {
+    tip.style.display = 'none';
+  });
+})();
+"""
 
-        # Visual </think> boundary
-        if i == think_end_token:
-            span += '<span class="think-end-marker">&lt;/think&gt;</span>'
-
-        spans.append(span)
-
-    trace_body = "".join(spans)
-
-    gradient = colorbar_gradient(vmin, vmax)
-    css = _CSS.format(status_color=status_color, gradient=gradient)
-
-    # Drop / rise event summary table
-    event_rows = []
-    for label, positions, etype, color in [
-        ("▼ Drop", drops, "drop", "#c0392b"),
-        ("▲ Rise", rises, "rise", "#27ae60"),
-    ]:
-        for rank, pos in enumerate(positions, 1):
-            context_start = max(0, pos - 8)
-            context_end   = min(len(token_texts), pos + 12)
-            ctx = html_lib.escape("".join(token_texts[context_start:context_end])
-                                  .replace("\n", " "))
-            # Smoothed values used for event detection
-            sm_before = float(smoothed[pos])
-            sm_after  = float(smoothed[min(pos + 1, len(smoothed) - 1)])
-            delta     = sm_after - sm_before
-            # Raw value at the onset token
-            raw_at    = float(metric_arr[pos])
-            event_rows.append(
-                f'<tr><td style="color:{color};font-weight:bold">{label} #{rank}</td>'
-                f'<td>token {pos}</td>'
-                f'<td>'
-                f'<span title="Rolling-mean of raw values over the smoothing window">'
-                f'smoothed: {sm_before:.4f} → {sm_after:.4f} <em>(Δ={delta:+.4f})</em>'
-                f'</span>'
-                f'<br><span style="color:#888;font-size:10px">'
-                f'raw at token: {raw_at:.4f}</span>'
-                f'</td>'
-                f'<td style="font-family:monospace;font-size:11px">…{ctx}…</td></tr>'
-            )
-
-    event_table = (
-        '<table border="0" cellpadding="5" cellspacing="0" style="'
-        'width:100%;border-collapse:collapse;font-size:12px;'
-        'background:#fff;border:1px solid #ddd;border-radius:8px;margin-bottom:14px">'
-        '<thead><tr style="background:#ecf0f1">'
-        '<th align="left">Event</th><th align="left">Position</th>'
-        '<th align="left">Value change (smoothed · raw)</th>'
-        '<th align="left">Context (±tokens)</th>'
-        '</tr></thead><tbody>'
-        + "\n".join(event_rows)
-        + "</tbody></table>"
-    )
-
+    primary_b = bundles[primary]
     html_out = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -332,39 +604,21 @@ def build_html(sample, metric_arr, smoothed, drops, rises,
   </h2>
   <p>Reference: <strong>{html_lib.escape(str(ref_answer))}</strong>
      &nbsp;|&nbsp; Extracted: <strong>{html_lib.escape(str(extracted))}</strong></p>
-  <p>Metric: <strong>{metric_name}</strong>
-     &nbsp;|&nbsp; Mean: {metric_arr.mean():.4f}
-     &nbsp;|&nbsp; Range: [{vmin:.4f}, {vmax:.4f}]
-     &nbsp;|&nbsp; Tokens: {len(metric_arr):,}
+  <p>{stats_str}
+     &nbsp;|&nbsp; Tokens: {len(primary_b["arr"]):,}
      &nbsp;|&nbsp; Smoothing window: {window}
   </p>
 </div>
 
-<div class="plot-wrap">
-  <div class="legend">
-    <div>
-      <div class="colorbar"></div>
-      <div class="cb-labels">
-        <span style="color:#c0392b">&#x25A0; {vmin:.3f} low (uncertain)</span>
-        <span style="color:#27ae60">high (certain) {vmax:.3f} &#x25A0;</span>
-      </div>
-    </div>
-    <div class="events-key">
-      <p><span style="color:#e74c3c">▼ red vertical lines + underline</span>
-         = sharpest drops (onset of uncertainty)</p>
-      <p><span style="color:#27ae60">▲ green vertical lines + underline</span>
-         = sharpest rises (onset of confidence)</p>
-    </div>
-    <span style="color:#888;font-size:11px">&#x1F4CC; Hover any token to see its exact value</span>
-  </div>
-  <img src="data:image/png;base64,{plot_b64}" alt="metric trajectory">
-</div>
+{switcher_html}
 
-{event_table}
+{plots_html}
 
-<div class="trace" id="trace-div">{trace_body}</div>
+{tables_html}
 
-<!-- floating tooltip ─────────────────────────────────────────────────────── -->
+<div class="trace active-{primary}" id="trace-div">{trace_body}</div>
+
+<!-- floating tooltip -->
 <div id="tok-tip" style="
   position:fixed; display:none; z-index:9999;
   background:#1a252f; color:#ecf0f1;
@@ -375,42 +629,7 @@ def build_html(sample, metric_arr, smoothed, drops, rises,
   border-left:3px solid #3498db;
 "></div>
 
-<script>
-(function() {{
-  var tip  = document.getElementById('tok-tip');
-  var wrap = document.getElementById('trace-div');
-  if (!wrap) return;
-
-  wrap.addEventListener('mousemove', function(e) {{
-    var el = e.target;
-    // Walk up to find a span that carries a data-val attribute
-    while (el && el !== wrap) {{
-      if (el.dataset && el.dataset.val) {{
-        tip.textContent = el.dataset.val;
-        tip.style.display = 'block';
-        // Position: 14px right, 36px above cursor so it doesn't block the token
-        var x = e.clientX + 14;
-        var y = e.clientY - 36;
-        // Clamp so tip never goes off the right edge of viewport
-        var tipW = tip.offsetWidth;
-        if (x + tipW > window.innerWidth - 10) {{
-          x = e.clientX - tipW - 14;
-        }}
-        tip.style.left = x + 'px';
-        tip.style.top  = y + 'px';
-        return;
-      }}
-      el = el.parentElement;
-    }}
-    tip.style.display = 'none';
-  }});
-
-  wrap.addEventListener('mouseleave', function() {{
-    tip.style.display = 'none';
-  }});
-}})();
-</script>
-
+<script>{js}</script>
 </body>
 </html>"""
 
@@ -427,22 +646,29 @@ def main():
     parser.add_argument("--problem-id",   required=True)
     parser.add_argument("--model",        required=True,
                         help="HF model path. Used for tokenizer always; "
-                             "for model weights only with --metric sc.")
+                             "for model weights with --metric sc or both.")
     parser.add_argument("--benchmark",    default=None)
     parser.add_argument("--sample-idx",   nargs="*", type=int, default=None,
                         help="Sample indices to inspect. "
-                             "Default: auto first correct + first incorrect.")
-    parser.add_argument("--metric",       choices=["sc", "nll"], default="nll",
-                        help="sc = self-certainty (GPU needed); "
-                             "nll = stored log-probs (no GPU)  [default: nll]")
+                             "Default: auto first correct + first incorrect "
+                             "+ fewest-token sample.")
+    parser.add_argument("--metric",
+                        choices=["sc", "lp", "neg_entropy", "both"],
+                        default="lp",
+                        help="sc = self-certainty KL(u‖p_t) (GPU needed); "
+                             "neg_entropy = -H(p_t) (GPU needed); "
+                             "lp = stored log-probs (no GPU); "
+                             "both = embed SC + LP in one file with toggle  "
+                             "[default: lp]")
     parser.add_argument("--window",       type=int, default=50,
                         help="Smoothing window for event detection (default 50)")
-    parser.add_argument("--top-events",   type=int, default=50,
+    parser.add_argument("--top-events",   type=int, default=20,
                         help="Number of drop/rise events to annotate (default 5)")
     parser.add_argument("--output-dir",   default=None)
     args = parser.parse_args()
 
-    use_nll = (args.metric == "nll")
+    metric_keys = ["sc", "lp"] if args.metric == "both" else [args.metric]
+    needs_model = any(mk in metric_keys for mk in ("sc", "neg_entropy"))
 
     output_dir = args.output_dir or os.path.join(
         os.path.dirname(args.samples_file), "trace_inspector"
@@ -496,14 +722,27 @@ def main():
             for s, st, _ in labeled:
                 if st == want and s.sample_idx not in chosen:
                     chosen.add(s.sample_idx)
+                    print(f"  Added first-{want} sample: s{s.sample_idx} "
+                          f"({len(s.generated_token_ids):,} tokens)")
                     break
-        # Fewest-token sample (cheapest / fastest completion)
+
+        # Fewest-token sample (cheapest completion)
         if labeled:
             fewest = min(labeled, key=lambda x: len(x[0].generated_token_ids))
             if fewest[0].sample_idx not in chosen:
                 chosen.add(fewest[0].sample_idx)
                 print(f"  Added fewest-token sample: s{fewest[0].sample_idx} "
                       f"({len(fewest[0].generated_token_ids):,} tokens, {fewest[1]})")
+
+        # Most-token sample (longest reasoning chain) — only adds diversity
+        # when all samples share the same correctness class
+        if labeled:
+            most = max(labeled, key=lambda x: len(x[0].generated_token_ids))
+            if most[0].sample_idx not in chosen:
+                chosen.add(most[0].sample_idx)
+                print(f"  Added most-token sample:   s{most[0].sample_idx} "
+                      f"({len(most[0].generated_token_ids):,} tokens, {most[1]})")
+
         if not chosen:
             chosen = {labeled[0][0].sample_idx}
         print(f"  Auto-selected sample indices: {sorted(chosen)}")
@@ -517,13 +756,10 @@ def main():
     print(f"  Tokenizer vocab size: {tokenizer.vocab_size:,}")
 
     helper = None
-    if not use_nll:
+    if needs_model:
         print(f"Loading model weights (SC mode)...")
         from src.model.qwen3_helper import Qwen3Helper
         helper = Qwen3Helper(model_name=args.model)
-
-    metric_name  = "log-prob" if use_nll else "self-certainty"
-    metric_label = "log P(y_t)" if use_nll else "SC = −H(p_t)"
 
     # ── Process samples ───────────────────────────────────────────────────────
     generated = []
@@ -535,32 +771,42 @@ def main():
               f"({len(s.generated_token_ids):,} tokens)  "
               f"extracted={extracted} ...", end=" ", flush=True)
 
-        metric_arr = get_metric(helper, s, use_nll)
-        if metric_arr is None:
-            print("SKIP — no token_logprobs stored (regenerate samples)")
+        # Compute all requested metrics
+        raw_metrics = get_metric_arrays(helper, s, metric_keys)
+
+        # Skip if any required metric is missing
+        skip = False
+        for mk in metric_keys:
+            if raw_metrics.get(mk) is None:
+                print(f"SKIP — no {mk} data (regenerate samples or add --metric lp)")
+                skip = True
+                break
+        if skip:
             continue
 
-        smoothed      = rolling_mean(metric_arr, args.window)
-        drops, rises  = find_events(smoothed, args.top_events)
-        token_texts   = [tokenizer.decode([tid]) for tid in s.generated_token_ids]
+        # Decode tokens once (shared across metrics)
+        token_texts = [tokenizer.decode([tid]) for tid in s.generated_token_ids]
+
+        # Build per-metric bundles
+        bundles = {}
+        for mk in metric_keys:
+            bundles[mk] = build_metric_bundle(
+                mk, raw_metrics[mk], args.window, args.top_events,
+                s, token_texts, args.problem_id
+            )
 
         html_str = build_html(
-            sample       = s,
-            metric_arr   = metric_arr,
-            smoothed     = smoothed,
-            drops        = drops,
-            rises        = rises,
-            token_texts  = token_texts,
-            status       = status,
-            ref_answer   = ref_answer,
-            extracted    = extracted,
-            metric_name  = metric_name,
-            metric_label = metric_label,
-            window       = args.window,
-            problem_id   = args.problem_id,
+            sample      = s,
+            bundles     = bundles,
+            token_texts = token_texts,
+            status      = status,
+            ref_answer  = ref_answer,
+            extracted   = extracted,
+            window      = args.window,
+            problem_id  = args.problem_id,
         )
 
-        fname = f"{args.metric}_trace_{args.problem_id}_s{s.sample_idx}_greedy.html"
+        fname = f"{args.metric}_trace_{args.problem_id}_s{s.sample_idx}.html"
         fpath = os.path.join(output_dir, fname)
         with open(fpath, "w", encoding="utf-8") as f:
             f.write(html_str)

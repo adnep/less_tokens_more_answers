@@ -3,12 +3,14 @@ think@n: test-time scaling with pluggable sample ranking.
 
 Ranking modes
 -------------
-dtr      : prefix Deep-Thinking Ratio  (needs HF model + intermediate layers)
-logprob  : mean log P(y_t) over prefix (free — stored by vLLM during generation)
-selfcert : mean negative-entropy of final-layer distribution over prefix
-           (needs HF model, but only final layer — much cheaper than dtr)
+dtr        : prefix Deep-Thinking Ratio  (needs HF model + intermediate layers)
+logprob    : mean log P(y_t) over prefix (free — stored by vLLM during generation)
+selfcert   : mean KL(uniform ‖ p_t) over prefix — Kang et al. (2025) Eq. 10
+             (needs HF model, final layer only — much cheaper than dtr)
+neg_entropy: mean negative entropy -H(p_t) over prefix (old selfcert definition)
+             (needs HF model, final layer only)
 
-All three modes produce a scalar per sample; top-eta samples are kept and
+All modes produce a scalar per sample; top-eta samples are kept and
 majority-voted to produce a final answer.
 """
 
@@ -21,7 +23,7 @@ from src.model.qwen3_helper import Qwen3Helper
 from src.inference.sampler import GeneratedSample
 from src.evaluation.voting import normalize_numeric_answer
 
-RANKING_MODES = ("dtr", "logprob", "selfcert")
+RANKING_MODES = ("dtr", "logprob", "selfcert", "neg_entropy")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -38,62 +40,76 @@ def _score_logprob(sample: GeneratedSample, prefix_length: int) -> float:
     return sum(lps) / len(lps)
 
 
+def _forward_pass(helper: Qwen3Helper, sample: GeneratedSample, prefix_length: Optional[int]):
+    """Run one forward pass and return (all_logits, prompt_len, actual_gen_len)."""
+    prompt_ids = torch.tensor([sample.prompt_token_ids], device=helper.device)
+    gen_ids    = torch.tensor([sample.generated_token_ids], device=helper.device)
+    actual     = gen_ids.shape[1] if prefix_length is None else min(prefix_length, gen_ids.shape[1])
+    full_ids   = torch.cat([prompt_ids, gen_ids[:, :actual]], dim=1)
+    with torch.no_grad():
+        all_logits = helper.model(full_ids).logits  # [1, T_full, V], bfloat16
+    return all_logits, prompt_ids.shape[1], actual
+
+
 def _score_selfcert(
     helper: Qwen3Helper,
     sample: GeneratedSample,
     prefix_length: Optional[int],
 ) -> float:
-    """Mean negative entropy of the final-layer output distribution.
+    """Mean SC = KL(uniform ‖ p_t) over the generated prefix.
 
-    Self-certainty = (1/T) Σ_t KL(uniform || p_{t,L})
-                   ∝ -mean_entropy
+    SC(t) = -log|V| - (1/|V|) Σ_v log p_t(v)   (Kang et al. 2025, Eq. 10)
 
-    Higher = more peaked distribution = model more confident.
-
-    Args:
-        prefix_length: number of generated tokens to score. If None, uses the
-                       full generated sequence. Full sequence is recommended for
-                       offline ranking (samples already generated, no compute saved
-                       by truncating, and more tokens = more stable estimate).
+    Range: [0, ∞).  0 = uniform (maximum uncertainty).  Higher = more confident.
+    Full sequence is used when prefix_length is None for a stable offline estimate.
     """
-    prompt_ids = torch.tensor([sample.prompt_token_ids], device=helper.device)
-    gen_ids    = torch.tensor([sample.generated_token_ids], device=helper.device)
+    SLICE = 128
+    all_logits, prompt_len, actual = _forward_pass(helper, sample, prefix_length)
 
-    if prefix_length is None:
-        actual = gen_ids.shape[1]
-    else:
-        actual = min(prefix_length, gen_ids.shape[1])
+    sc_sum   = 0.0
+    n_tokens = 0
+    for start in range(0, actual, SLICE):
+        end   = min(start + SLICE, actual)
+        sl    = all_logits[0, prompt_len + start : prompt_len + end].float()  # [s, V]
+        log_p = torch.log_softmax(sl, dim=-1)
+        sc    = -math.log(log_p.shape[-1]) - log_p.mean(dim=-1)              # [s]
+        sc_sum   += sc.sum().item()
+        n_tokens += sc.shape[0]
+        del sl, log_p, sc
 
-    full_ids = torch.cat([prompt_ids, gen_ids[:, :actual]], dim=1)
-    prompt_len = prompt_ids.shape[1]
+    del all_logits
+    torch.cuda.empty_cache()
+    return sc_sum / n_tokens if n_tokens > 0 else 0.0
 
-    # Single forward pass, then compute entropy slice-by-slice over the vocab dim
-    # to avoid materialising two copies of the full [T, V] float32 tensor at once.
-    # Strategy: get logits [1, T_full, V], then iterate over generated token positions
-    # in small slices, compute log_softmax + entropy on each slice, accumulate scalar.
-    SLICE = 128  # token positions per slice — tune down if still OOM
 
-    with torch.no_grad():
-        all_logits = helper.model(full_ids).logits   # [1, T_full, V], still bfloat16
+def _score_neg_entropy(
+    helper: Qwen3Helper,
+    sample: GeneratedSample,
+    prefix_length: Optional[int],
+) -> float:
+    """Mean negative entropy -H(p_t) over the generated prefix.
+
+    Range: (-∞, 0].  Closer to 0 = more confident.
+    This was the original 'selfcert' definition before the KL formulation.
+    """
+    SLICE = 128
+    all_logits, prompt_len, actual = _forward_pass(helper, sample, prefix_length)
 
     entropy_sum = 0.0
     n_tokens    = 0
-
     for start in range(0, actual, SLICE):
         end   = min(start + SLICE, actual)
-        # Cast to float32 only for this small slice
         sl    = all_logits[0, prompt_len + start : prompt_len + end].float()  # [s, V]
         log_p = torch.log_softmax(sl, dim=-1)
-        ent   = -(log_p.exp() * log_p).sum(dim=-1)   # [s]
+        ent   = -(log_p.exp() * log_p).sum(dim=-1)                           # [s]
         entropy_sum += ent.sum().item()
         n_tokens    += ent.shape[0]
         del sl, log_p, ent
 
     del all_logits
     torch.cuda.empty_cache()
-
     mean_entropy = entropy_sum / n_tokens if n_tokens > 0 else 0.0
-    return -mean_entropy                                              # higher = more certain
+    return -mean_entropy
 
 
 def _score_dtr(
@@ -135,7 +151,7 @@ def think_at_n(
         prefix_length:  tokens used for scoring
         answer_extractor: callable(str) -> Optional[str]
         tuned_lens:     optional TunedLens (used only when ranking_mode='dtr')
-        ranking_mode:   one of 'dtr', 'logprob', 'selfcert'
+        ranking_mode:   one of 'dtr', 'logprob', 'selfcert', 'neg_entropy'
 
     Returns:
         dict with keys:
@@ -161,8 +177,11 @@ def think_at_n(
             s = _score_dtr(scorer, model_helper, sample, prefix_length)
         elif ranking_mode == "logprob":
             s = _score_logprob(sample, prefix_length)
-        else:  # selfcert — use full sequence for a stable estimate
+        elif ranking_mode == "selfcert":
+            # KL(uniform ‖ p_t) — use full sequence for a stable offline estimate
             s = _score_selfcert(model_helper, sample, prefix_length=None)
+        else:  # neg_entropy — use full sequence for a stable offline estimate
+            s = _score_neg_entropy(model_helper, sample, prefix_length=None)
         scores.append((sample.sample_idx, s))
 
     # Sort descending, keep top eta fraction

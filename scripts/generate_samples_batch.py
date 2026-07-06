@@ -79,6 +79,13 @@ def main():
              "If not set, auto-detects completed problems from existing output file.",
     )
     parser.add_argument(
+        "--no-chat-template",
+        action="store_true",
+        help="Skip chat template wrapping. By default prompts are wrapped so "
+             "the model starts in thinking mode (produces <think>...</think>). "
+             "Pass this flag to revert to raw-text prompts (legacy behaviour).",
+    )
+    parser.add_argument(
         "--problem-ids",
         nargs="+",
         default=None,
@@ -213,6 +220,7 @@ def main():
             top_p=args.top_p,
             max_tokens=args.max_tokens,
             output_file=output_file,  # Enable streaming to disk
+            use_chat_template=not args.no_chat_template,
         )
 
         # Count samples written

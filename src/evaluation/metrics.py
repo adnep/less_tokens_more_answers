@@ -7,7 +7,7 @@ from typing import List, Optional
 from src.evaluation.voting import normalize_numeric_answer
 
 
-def _normalize_for_comparison(s: str) -> str:
+def _normalize_for_comparison(s: str | None) -> str:
     """Normalize answer for comparison.
 
     - Lowercases (so "Yes"/"yes"/"YES" all compare equal for yes_no datasets;
@@ -17,10 +17,12 @@ def _normalize_for_comparison(s: str) -> str:
       '\\frac{9 \\sqrt{23}}{23}' == '\\frac{9\\sqrt{23}}{23}')
     - Strips leading zeros from pure integers
     """
+    if s is None:
+        return s
     s = str(s).strip().lower()
     # Remove all internal whitespace so LaTeX spacing variants compare equal
     s = re.sub(r'\s+', '', s)
-    normalized = normalize_numeric_answer(s)
+    normalized = normalize_numeric_answer(s).replace("dfrac", "frac")
     return normalized if normalized else s
 
 

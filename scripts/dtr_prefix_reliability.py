@@ -118,6 +118,9 @@ def main():
                         help="Where to save plots. Defaults to same dir as samples file.")
     parser.add_argument("--gamma",        type=float, default=0.5)
     parser.add_argument("--rho",          type=float, default=0.85)
+    parser.add_argument("--sample-ids",   default=None,
+                        help="Comma-separated sample indices to include, e.g. 0,3,7. "
+                             "Defaults to all samples for the problem.")
     args = parser.parse_args()
 
     output_dir = args.output_dir or os.path.join(
@@ -134,6 +137,10 @@ def main():
         print(f"Available IDs: {sorted(set(s.problem_id for s in all_samples))[:10]} ...")
         return
     print(f"  Found {len(samples)} samples for '{args.problem_id}'")
+    if args.sample_ids is not None:
+        keep = set(int(x) for x in args.sample_ids.split(","))
+        samples = [s for s in samples if s.sample_idx in keep]
+        print(f"  Filtered to {len(samples)} samples: {sorted(keep)}")
 
     # ── Optional: load reference answer for correctness colouring ────────────
     ref_answer = None

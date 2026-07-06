@@ -185,7 +185,13 @@ def plot_heatmap(r: dict, title: str = "") -> plt.Figure:
 
     # Y-axis token labels
     ax.set_yticks(range(T_disp))
-    clean = [repr(lbl.replace("\n", "↵").replace("\t", "→"))[:18] for lbl in labels]
+    def _mpl_safe(s: str) -> str:
+        s = s.replace("\n", "↵").replace("\t", "→")
+        s = repr(s)[:20]           # quotes make backslashes literal
+        s = s.replace("$", r"\$")  # escape any remaining dollar signs
+        return s
+
+    clean = [_mpl_safe(lbl) for lbl in labels]
     ax.set_yticklabels([f"{i} {c}" for i, c in enumerate(clean)], fontsize=6.5)
 
     ax.set_xlabel("Layer", fontsize=9)
@@ -262,7 +268,7 @@ with st.sidebar:
 
     st.divider()
     st.header("Benchmark (for answers)")
-    BENCHMARKS = ["none", "aime_2024", "gpqa_diamond", "hmmt2025"]
+    BENCHMARKS = ["none", "aime24", "gpqa_diamond", "hmmt2025", "arithmetic_stress_test", "char_occur", "substring_occur", "distinct_char", "word_len"]
     sel_benchmark = st.selectbox("Benchmark", BENCHMARKS)
 
     st.divider()
@@ -441,6 +447,121 @@ with tab_explorer:
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — Dataset Summary
 # ══════════════════════════════════════════════════════════════════════════════
+
+# ── Pre-computed results helpers ──────────────────────────────────────────────
+
+def _find_results_file(samples_path: Path) -> Optional[Path]:
+    """Look for results.jsonl or results.json next to the samples file."""
+    parent = samples_path.parent
+    for name in ("results.jsonl", "results.json"):
+        p = parent / name
+        if p.exists():
+            return p
+    return None
+
+
+@st.cache_data(show_spinner="Loading pre-computed results…")
+def _load_results_file(path: str) -> List[dict]:
+    """
+    Load per-problem rows from results.jsonl (one JSON per line) or
+    results.json (run_think_at_n.py format with a "per_problem" array).
+
+    Always returns a list of dicts, each containing at minimum:
+        problem_id, reference, maj_answer, maj_correct, pass_correct,
+        n_correct, n_total
+    and optionally:
+        think_answer_<mode>, think_correct_<mode>
+    """
+    path = Path(path)
+    if path.suffix == ".jsonl":
+        # One record per line — written by this explorer's "Compute & save"
+        records = _load_jsonl_robust(str(path))
+        return records
+    else:
+        # results.json written by run_think_at_n.py
+        with open(path) as f:
+            data = json.load(f)
+        rows = []
+        for pp in data.get("per_problem", []):
+            ref = pp.get("reference", "")
+            extractions = [
+                se.get("extracted_answer") for se in pp.get("sample_extractions", [])
+            ]
+            n_total   = len(extractions)
+            n_correct = sum(1 for e in extractions if _is_correct_ref(e, ref))
+            maj_ans   = pp.get("maj_answer")
+            row = {
+                "problem_id":  pp.get("id", ""),
+                "reference":   ref,
+                "maj_answer":  str(maj_ans) if maj_ans is not None else "—",
+                "maj_correct": _is_correct_ref(maj_ans, ref),
+                "pass_correct": n_correct > 0,
+                "n_correct":   n_correct,
+                "n_total":     n_total,
+            }
+            # Preserve any think@n fields
+            for k, v in pp.items():
+                if k.startswith("think_answer_"):
+                    mode = k[len("think_answer_"):]
+                    row[f"think_answer_{mode}"] = str(v) if v is not None else "—"
+                    row[f"think_correct_{mode}"] = _is_correct_ref(v, ref)
+            rows.append(row)
+        return rows
+
+
+def _rows_to_df(rows: List[dict], n_per_problem: int):
+    """Convert per-problem rows into a display DataFrame."""
+    import pandas as pd
+    display_rows = []
+    for r in rows:
+        d = {
+            "problem_id": r["problem_id"],
+            "reference":  r["reference"],
+            "maj_vote":   r.get("maj_answer", "—"),
+            "maj✓":       "✅" if r.get("maj_correct") else "❌",
+            "pass✓":      "✅" if r.get("pass_correct") else "❌",
+            f"n✓/{r.get('n_total', n_per_problem)}": r.get("n_correct", "?"),
+        }
+        # Add think@n columns if present
+        for k in r:
+            if k.startswith("think_answer_"):
+                mode = k[len("think_answer_"):]
+                d[f"think@n ({mode})"]  = r[k]
+                d[f"think✓ ({mode})"]   = "✅" if r.get(f"think_correct_{mode}") else "❌"
+        display_rows.append(d)
+    return pd.DataFrame(display_rows)
+
+
+def _render_dataset_summary(rows: List[dict], n_per_problem, source_label: str):
+    """Render aggregate metrics + per-problem table from pre-computed rows."""
+    import pandas as pd
+    df = _rows_to_df(rows, n_per_problem)
+    n_probs   = len(df)
+    maj_acc   = df["maj✓"].eq("✅").mean()
+    pass_acc  = df["pass✓"].eq("✅").mean()
+
+    # Detect think@n modes
+    think_modes = [
+        k[len("think_answer_"):] for k in rows[0] if k.startswith("think_answer_")
+    ] if rows else []
+
+    metric_cols = st.columns(2 + len(think_modes))
+    metric_cols[0].metric(f"maj@{n_per_problem} accuracy",  f"{maj_acc*100:.1f}%",
+                          f"{df['maj✓'].eq('✅').sum()}/{n_probs} problems")
+    metric_cols[1].metric(f"pass@{n_per_problem} accuracy", f"{pass_acc*100:.1f}%",
+                          f"{df['pass✓'].eq('✅').sum()}/{n_probs} problems")
+    for ci, mode in enumerate(think_modes, 2):
+        col_name = f"think✓ ({mode})"
+        if col_name in df.columns:
+            think_acc = df[col_name].eq("✅").mean()
+            metric_cols[ci].metric(f"think@n ({mode})", f"{think_acc*100:.1f}%",
+                                   f"{df[col_name].eq('✅').sum()}/{n_probs} problems")
+
+    st.caption(f"Source: `{source_label}`")
+    st.divider()
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+
 with tab_dataset:
     if sel_benchmark == "none":
         st.warning("Select a benchmark in the sidebar to enable dataset-level metrics.")
@@ -449,54 +570,61 @@ with tab_dataset:
         n_samples_per_problem = len(list(grouped.values())[0]) if grouped else "?"
         st.caption(f"Samples file: `{sel_file_label}`  |  n={n_samples_per_problem} samples/problem  |  η={eta}")
 
-        dataset_btn = st.button("Compute maj@n · pass@n · think@n (no model needed)",
-                                type="primary")
-        if dataset_btn:
-            rows = []
-            prog2 = st.progress(0, text="Extracting answers…")
-            for p_idx, (pid, samples) in enumerate(grouped.items()):
-                bref = bench_data.get(pid)
-                if bref is None:
-                    continue
-                atype = bref["answer_type"]
-                ref_ans = bref["answer"]
+        # ── Check for pre-computed results next to the samples file ───────────
+        results_file = _find_results_file(sel_file)
 
-                exts = [extract_answer(s.generated_text, atype) for s in samples]
-                maj_ans = majority_vote([a for a in exts if a is not None])
-                maj_ok  = _is_correct_ref(maj_ans, ref_ans)
-                pass_ok = any(_is_correct_ref(a, ref_ans) for a in exts)
-                n_ok    = sum(_is_correct_ref(a, ref_ans) for a in exts)
+        if results_file is not None:
+            st.success(f"✅ Pre-computed results found: `{results_file.name}`")
+            if st.button("↺ Reload results from file"):
+                st.cache_data.clear()
+            rows = _load_results_file(str(results_file))
+            if rows:
+                _render_dataset_summary(rows, n_samples_per_problem,
+                                        str(results_file.relative_to(sel_file.parent.parent)))
+            else:
+                st.warning("Results file is empty or could not be parsed.")
 
-                # think@n using RANDOM proxy (no DTR) — note shown
-                # DTR-based think@n available only after computing in Problem Explorer
-                rows.append({
-                    "problem_id":   pid,
-                    "reference":    ref_ans,
-                    "maj_vote":     str(maj_ans),
-                    "maj✓":         "✅" if maj_ok  else "❌",
-                    "pass✓":        "✅" if pass_ok else "❌",
-                    f"n✓/{len(samples)}": n_ok,
-                })
-                prog2.progress((p_idx + 1) / len(grouped),
-                               text=f"{pid}  {'✅' if maj_ok else '❌'}")
-            prog2.empty()
+        else:
+            st.info("No pre-computed results found next to the samples file. "
+                    "Compute below — results will be saved as `results.jsonl` "
+                    "for instant loading next time.")
 
-            import pandas as pd
-            df = pd.DataFrame(rows)
+            dataset_btn = st.button("Compute maj@n · pass@n (no model needed)",
+                                    type="primary")
+            if dataset_btn:
+                rows = []
+                prog2 = st.progress(0, text="Extracting answers…")
+                for p_idx, (pid, samples) in enumerate(grouped.items()):
+                    bref = bench_data.get(pid)
+                    if bref is None:
+                        continue
+                    atype   = bref["answer_type"]
+                    ref_ans = bref["answer"]
 
-            # ── Aggregate metrics ──────────────────────────────────────────────
-            n_probs = len(df)
-            maj_acc   = df["maj✓"].eq("✅").mean()
-            pass_acc  = df["pass✓"].eq("✅").mean()
+                    exts    = [extract_answer(s.generated_text, atype) for s in samples]
+                    maj_ans = majority_vote([a for a in exts if a is not None])
+                    maj_ok  = _is_correct_ref(maj_ans, ref_ans)
+                    pass_ok = any(_is_correct_ref(a, ref_ans) for a in exts)
+                    n_ok    = sum(_is_correct_ref(a, ref_ans) for a in exts)
 
-            m1, m2, m3 = st.columns(3)
-            m1.metric(f"maj@{n_samples_per_problem} accuracy",   f"{maj_acc*100:.1f}%",
-                      f"{df['maj✓'].eq('✅').sum()}/{n_probs} problems")
-            m2.metric(f"pass@{n_samples_per_problem} accuracy",  f"{pass_acc*100:.1f}%",
-                      f"{df['pass✓'].eq('✅').sum()}/{n_probs} problems")
-            m3.metric("think@n", "n/a — needs DTR",
-                      "run Problem Explorer first")
+                    rows.append({
+                        "problem_id":  pid,
+                        "reference":   ref_ans,
+                        "maj_answer":  str(maj_ans) if maj_ans is not None else "—",
+                        "maj_correct": maj_ok,
+                        "pass_correct": pass_ok,
+                        "n_correct":   n_ok,
+                        "n_total":     len(samples),
+                    })
+                    prog2.progress((p_idx + 1) / len(grouped),
+                                   text=f"{pid}  {'✅' if maj_ok else '❌'}")
+                prog2.empty()
 
-            # ── Per-problem table ──────────────────────────────────────────────
-            st.divider()
-            st.dataframe(df, use_container_width=True, hide_index=True)
+                # ── Save results.jsonl next to samples file ────────────────────
+                save_path = sel_file.parent / "results.jsonl"
+                with open(save_path, "w") as fout:
+                    for r in rows:
+                        fout.write(json.dumps(r) + "\n")
+                st.success(f"Saved `{save_path.name}` — will load automatically next time.")
+
+                _render_dataset_summary(rows, n_samples_per_problem, "just computed")

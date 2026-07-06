@@ -4,27 +4,29 @@ Self-certainty trajectory analysis.
 For each sample computes a per-token signal, smoothed with a rolling window,
 and plots how it evolves over the course of the reasoning trace.
 
-Three metric modes (select at most one flag):
-  (default)          SC level   — negative entropy of final-layer distribution
-                                  ≤ 0, closer to 0 = more certain
-  --use-nll          Log-prob   — stored per-token log P(y_t) from vLLM
-                                  ≤ 0, closer to 0 = more confident
-                                  NO model pass needed — uses stored logprobs
-  --use-sc-variance  SC variance — rolling std of SC instead of rolling mean
-                                  measures oscillation / thrashing
-                                  ≥ 0, lower = model is settling steadily
+Four metric modes (select at most one flag):
+  (default)             SC = KL(u‖p_t)  — Self-Certainty (Kang et al. 2025)
+                                          ≥ 0, higher = more certain
+  --use-neg-entropy     Neg-entropy      — -H(p_t) ∈ (-∞, 0], closer to 0 = more certain
+  --use-lp              Log-prob         — stored per-token log P(y_t) from vLLM
+                                          ≤ 0, closer to 0 = more confident
+                                          NO model pass needed — uses stored logprobs
+  --use-sc-variance     SC variance      — rolling std of SC instead of rolling mean
+                                          measures oscillation / thrashing
+                                          ≥ 0, lower = model is settling steadily
 
 Output directories are tagged to avoid overwriting:
-  sc_trajectories/          default SC level
-  sc_trajectories_nll/      --use-nll
-  sc_trajectories_var/      --use-sc-variance
+  sc_trajectories/                default SC level
+  sc_trajectories_neg_entropy/    --use-neg-entropy
+  sc_trajectories_lp/             --use-lp
+  sc_trajectories_var/            --use-sc-variance
 
 Plots produced per problem + one aggregate across all problems:
   1. Absolute x-axis: token position, faint individual lines + mean±std band
                       (mean band shown only where ≥80% samples have data)
   2. Normalized x-axis: [0,1] fraction of sequence, same styling
   3. Late-gain boxplot: metric(last 20%) − metric(first 20%)
-     For SC/NLL: positive = more certain/confident at end
+     For SC/LP: positive = more certain/confident at end
      For SC-var:  negative = less oscillating at end (settling)
 
 Usage:
@@ -34,7 +36,7 @@ Usage:
         --model /path/to/Qwen3-4B-Thinking-2507 \
         [--problem-ids hmmt_1 hmmt_3 hmmt_7]   # omit = all problems
         [--window 100]                           # rolling window size
-        [--use-nll | --use-sc-variance]
+        [--use-lp | --use-sc-variance]
 """
 
 import sys
@@ -61,11 +63,12 @@ COVERAGE_THRESHOLD = 0.50   # mean band shown where ≥50% of samples have data
 # Per-token metric computation
 # ──────────────────────────────────────────────────────────────────────────────
 
-def token_selfcert(helper, sample) -> np.ndarray:
+def token_neg_entropy(helper, sample) -> np.ndarray:
     """
-    Return per-token self-certainty (negative entropy) for all generated tokens.
-    Single forward pass; entropy computed in vocab-slices to avoid OOM.
-    Shape: [T_gen]  higher (closer to 0) = more certain.
+    Per-token negative entropy: -H(p_t) = ∑_v p_t(v) log p_t(v).
+    Range: (-∞, 0].  Closer to 0 = more certain.
+    Single forward pass; computed in vocab-slices to avoid OOM.
+    Shape: [T_gen].
     """
     prompt_ids = torch.tensor([sample.prompt_token_ids], device=helper.device)
     gen_ids    = torch.tensor([sample.generated_token_ids], device=helper.device)
@@ -87,28 +90,88 @@ def token_selfcert(helper, sample) -> np.ndarray:
 
     del all_logits
     torch.cuda.empty_cache()
-    return -entropy_arr   # negative entropy = self-certainty
+    return -entropy_arr   # negative entropy
 
 
-def get_raw_metric(helper, sample, use_nll: bool) -> np.ndarray | None:
+def token_selfcert(helper, sample) -> np.ndarray:
+    """
+    Per-token Self-Certainty (Kang et al., 2025):
+        SC(t) = KL(u ‖ p_t) = -log|V| - (1/|V|) ∑_v log p_t(v)
+    Range: [0, ∞).  0 = uniform (maximum uncertainty).  Higher = more certain.
+    Single forward pass; computed in vocab-slices to avoid OOM.
+    Shape: [T_gen].
+    """
+    import math
+
+    prompt_ids = torch.tensor([sample.prompt_token_ids], device=helper.device)
+    gen_ids    = torch.tensor([sample.generated_token_ids], device=helper.device)
+    T_gen      = gen_ids.shape[1]
+    prompt_len = prompt_ids.shape[1]
+    full_ids   = torch.cat([prompt_ids, gen_ids], dim=1)
+
+    with torch.no_grad():
+        all_logits = helper.model(full_ids).logits   # [1, T_full, V], bfloat16
+
+    V = all_logits.shape[-1]
+    log_v = math.log(V)
+
+    # Accumulate (1/V) ∑_v log p_t(v) across vocab slices
+    sum_log_p = np.zeros(T_gen, dtype=np.float64)
+    for start in range(0, T_gen, SLICE_SIZE):
+        end = min(start + SLICE_SIZE, T_gen)
+        sl  = all_logits[0, prompt_len + start : prompt_len + end].float()
+        lp  = torch.log_softmax(sl, dim=-1)
+        sum_log_p[start:end] += lp.sum(dim=-1).cpu().numpy()
+        del sl, lp
+
+    del all_logits
+    torch.cuda.empty_cache()
+
+    # KL(u ‖ p_t) = -log|V| - mean_v(log p_t(v))
+    return (-log_v - sum_log_p / V).astype(np.float32)
+
+
+def get_raw_metric(helper, sample, metric: str) -> np.ndarray | None:
     """
     Return the raw per-token metric array for a sample.
 
-    use_nll=True  → stored token log-probs (no model pass)
-    use_nll=False → SC via forward pass
+    metric="sc"          → KL(u ‖ p_t) via forward pass
+    metric="neg_entropy" → -H(p_t) via forward pass
+    metric="lp"          → stored token log-probs (no model pass)
     """
-    if use_nll:
+    if metric == "lp":
         lps = sample.token_logprobs
         if not lps:
             return None
         return np.array(lps, dtype=np.float32)
+    elif metric == "neg_entropy":
+        return token_neg_entropy(helper, sample)
     else:
         return token_selfcert(helper, sample)
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Smoothing helpers
 # ──────────────────────────────────────────────────────────────────────────────
+
+def zscore_causal(arr: np.ndarray, min_samples: int = 30, eps: float = 1e-6) -> np.ndarray:
+    """
+    Causal z-score via Welford's online algorithm.
+    At each position t, normalises using only mean/std of arr[:t] —
+    no future information, matching what the online engine metric would see.
+    Returns 0 for the first `min_samples` positions (insufficient history).
+    """
+    out = np.zeros(len(arr), dtype=np.float32)
+    n, mean, M2 = 0, 0.0, 0.0
+    for t, x in enumerate(arr):
+        n += 1
+        delta = x - mean
+        mean += delta / n
+        M2 += delta * (x - mean)
+        if n >= min_samples:
+            std = np.sqrt(M2 / (n - 1))
+            out[t] = (x - mean) / (std + eps)
+    return out
+
 
 def rolling_mean(arr: np.ndarray, window: int) -> np.ndarray:
     """Centred rolling mean; edges padded with edge values."""
@@ -142,16 +205,34 @@ def interpolate_to_grid(arr: np.ndarray, n: int = 200) -> np.ndarray:
 # Plot helpers — all functions receive a `cfg` dict with display strings
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _make_cfg(use_nll: bool, use_sc_variance: bool) -> dict:
+def _make_cfg(metric: str, use_sc_variance: bool, use_sc_zscore: bool = False) -> dict:
     """Build display-string config based on selected metric mode."""
-    if use_nll:
+    if use_sc_zscore:
         return dict(
-            metric_name   = "nll",
-            file_prefix   = "nll",
+            metric_name  = "sc_zscore",
+            file_prefix  = "sc_zscore",
+            ylabel       = "Z-scored SC  (σ units,  0 = mean,  higher = more certain)",
+            late_ylabel  = "Z-SC(last 20%) − Z-SC(first 20%)",
+            late_title   = "Late-gain: does z-scored certainty rise toward the end?",
+            suptitle_tag = "Z-scored SC trajectories",
+        )
+    if metric == "lp":
+        return dict(
+            metric_name   = "lp",
+            file_prefix   = "lp",
             ylabel        = "Log-prob  (≤ 0,  closer to 0 = more confident)",
             late_ylabel   = "Log-prob(last 20%) − Log-prob(first 20%)",
             late_title    = "Late-gain: does log-prob rise toward the end?",
             suptitle_tag  = "Log-prob trajectories",
+        )
+    elif metric == "neg_entropy":
+        return dict(
+            metric_name   = "neg_entropy",
+            file_prefix   = "neg_entropy",
+            ylabel        = "Negative entropy  (≤ 0,  closer to 0 = more certain)",
+            late_ylabel   = "NegEnt(last 20%) − NegEnt(first 20%)",
+            late_title    = "Late-gain: does certainty rise toward the end?",
+            suptitle_tag  = "Negative-entropy trajectories",
         )
     elif use_sc_variance:
         return dict(
@@ -167,7 +248,7 @@ def _make_cfg(use_nll: bool, use_sc_variance: bool) -> dict:
         return dict(
             metric_name   = "sc",
             file_prefix   = "sc",
-            ylabel        = "Self-certainty  (≤ 0,  closer to 0 = more certain)",
+            ylabel        = "Self-certainty  (≥ 0,  KL(u‖p_t),  higher = more certain)",
             late_ylabel   = "SC(last 20%) − SC(first 20%)",
             late_title    = "Late-gain: does certainty rise toward the end?",
             suptitle_tag  = "Self-certainty trajectories",
@@ -292,8 +373,8 @@ def plot_problem(traces_by_status, problem_id, window, output_dir,
 
 
 def plot_aggregate(all_traces_by_status, window, output_dir, cfg, use_sc_variance):
-    """Same three panels aggregated across all problems (normalised only)."""
-    fig, axes = plt.subplots(1, 3, figsize=(17, 4.5))
+    """Same two panels aggregated across all problems (normalised only)."""
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
 
     # Panel 1: normalised mean ± std
     ax = axes[0]
@@ -313,29 +394,8 @@ def plot_aggregate(all_traces_by_status, window, output_dir, cfg, use_sc_varianc
     ax.set_title("All problems — normalised mean ± std")
     ax.legend(fontsize=8)
 
-    # Panel 2: individual faint lines + mean (bold)
+    # Panel 2: late-gain boxplot
     ax = axes[1]
-    for status in ["correct", "incorrect", "unknown"]:
-        traces = all_traces_by_status.get(status, [])
-        if not traces:
-            continue
-        color = COLORS[status]
-        for t in traces:
-            xs = np.linspace(0, 1, len(t))
-            ax.plot(xs, _smooth(t, window, use_sc_variance),
-                    color=color, alpha=0.07, lw=0.6)
-        grids = np.stack([interpolate_to_grid(_smooth(t, window, use_sc_variance))
-                          for t in traces])
-        xs = np.linspace(0, 1, grids.shape[1])
-        ax.plot(xs, grids.mean(0), color=color, lw=2.5,
-                label=f"{status} (n={len(traces)})")
-    ax.set_xlabel("Fraction of sequence")
-    ax.set_ylabel(cfg["ylabel"])
-    ax.set_title("Individual traces (faint) + mean (bold)")
-    ax.legend(fontsize=8)
-
-    # Panel 3: late-gain boxplot
-    ax = axes[2]
     box_data, box_labels, box_colors = [], [], []
     for status in ["correct", "incorrect", "unknown"]:
         traces = all_traces_by_status.get(status, [])
@@ -382,7 +442,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples-file",    required=True)
     parser.add_argument("--model",           default=None,
-                        help="HF model path. Not needed with --use-nll.")
+                        help="HF model path. Not needed with --use-lp.")
     parser.add_argument("--benchmark",       default=None,
                         help="Benchmark name for reference answers (optional)")
     parser.add_argument("--problem-ids",     nargs="*", default=None,
@@ -393,32 +453,50 @@ def main():
                         help="Base output directory (metric suffix appended automatically)")
 
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--use-nll",         action="store_true",
+    mode.add_argument("--use-neg-entropy", action="store_true",
+                      help="Plot -H(p_t) (negative entropy) instead of SC. "
+                           "Requires model.")
+    mode.add_argument("--use-lp",          action="store_true",
                       help="Use stored token log-probs instead of SC. "
                            "No model pass needed.")
     mode.add_argument("--use-sc-variance", action="store_true",
                       help="Plot rolling std of SC (oscillation) instead of "
                            "rolling mean.")
+    mode.add_argument("--use-sc-zscore", action="store_true",
+                      help="Z-score each SC trace (mean=0, std=1) before plotting. "
+                           "Makes drop patterns comparable across models.")
 
     args = parser.parse_args()
 
-    # Validate: model is required unless --use-nll
-    if not args.use_nll and args.model is None:
-        parser.error("--model is required unless --use-nll is set")
+    # Resolve which metric is active
+    if args.use_lp:
+        metric = "lp"
+    elif args.use_neg_entropy:
+        metric = "neg_entropy"
+    else:
+        metric = "sc"  # sc, sc_variance, and sc_zscore all compute SC underneath
+
+    # Validate: model is required for SC and neg_entropy
+    if metric != "lp" and args.model is None:
+        parser.error("--model is required unless --use-lp is set")
 
     # ── Output directory — tagged by metric ───────────────────────────────────
     base_dir = args.output_dir or os.path.join(
         os.path.dirname(args.samples_file), "sc_trajectories"
     )
-    if args.use_nll:
-        output_dir = base_dir + "_nll"
+    if metric == "lp":
+        output_dir = base_dir + "_lp"
+    elif metric == "neg_entropy":
+        output_dir = base_dir + "_neg_entropy"
     elif args.use_sc_variance:
         output_dir = base_dir + "_var"
+    elif args.use_sc_zscore:
+        output_dir = base_dir + "_zscore"
     else:
         output_dir = base_dir
     os.makedirs(output_dir, exist_ok=True)
 
-    cfg = _make_cfg(args.use_nll, args.use_sc_variance)
+    cfg = _make_cfg(metric, args.use_sc_variance, args.use_sc_zscore)
     print(f"Metric: {cfg['metric_name']}   Output: {output_dir}/")
 
     # ── Load samples ──────────────────────────────────────────────────────────
@@ -443,9 +521,9 @@ def main():
             answer_types[p.id] = p.answer_type
         print(f"  Loaded {len(ref_answers)} reference answers")
 
-    # ── Load model (skipped for NLL mode) ────────────────────────────────────
+    # ── Load model (skipped for LP mode) ─────────────────────────────────────
     helper = None
-    if not args.use_nll:
+    if metric != "lp":
         from src.model.qwen3_helper import Qwen3Helper
         print(f"\nLoading model: {args.model}")
         helper = Qwen3Helper(model_name=args.model)
@@ -468,10 +546,12 @@ def main():
             print(f"  Sample {sample.sample_idx:2d} "
                   f"({len(sample.generated_token_ids)} tokens) ...", end=" ", flush=True)
 
-            raw = get_raw_metric(helper, sample, args.use_nll)
+            raw = get_raw_metric(helper, sample, metric)
             if raw is None:
                 print("SKIP — no log-probs stored (regenerate samples with updated code)")
                 continue
+            if args.use_sc_zscore:
+                raw = zscore_causal(raw)
 
             # Correctness label
             if pid in ref_answers:

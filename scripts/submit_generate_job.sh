@@ -47,16 +47,16 @@ source $HOME_STORAGE/mainenv/bin/activate
 export CUDA_VISIBLE_DEVICES=0
 
 cd $WORK_DIR
-mkdir -p outputs/hmmt_samples16new
+mkdir -p outputs/dataset_results
 
 echo "Starting sample generation..."
 echo ""
 
 python scripts/generate_samples_batch.py \
-  --benchmark hmmt2025 \
+  --benchmark substring_occur \
   --n-samples 24 \
   --model /storage/praha1/home/adnep/hf_cache/hub/models--Qwen--Qwen3-4B-Thinking-2507/snapshots/768f209d9ea81521153ed38c47d515654e938aea \
-  --output-dir outputs/hmmt_samples16new \
+  --output-dir outputs/dataset_results \
   --max-tokens 16384 \
   --temperature 0.6 \
   --top-p 0.95
