@@ -9,7 +9,7 @@ Master's thesis code, in two parts:
    method from *"Think Deep, Not Just Long"*, plus the confidence-signal trajectory
    analysis (Self-Certainty, log-probability). *(Thesis appendix B.)*
 
-Model used throughout: [https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507](**Qwen3-4B-Thinking-2507**).
+Model used throughout: [**Qwen3-4B-Thinking-2507**](https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507).
 
 ## Layout
 
