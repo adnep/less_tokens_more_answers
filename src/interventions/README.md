@@ -22,12 +22,13 @@ Run from the **repo root** so `src` is importable (the scripts add it to `sys.pa
 
 ```bash
 python scripts/run_intervention.py \
-    --benchmark aime24 \
+    --benchmark arithmetic_stress_test \
     --model Qwen/Qwen3-4B-Thinking-2507 \
     --strategy drop_detect --metric sc \
-    --strategy-kwargs '{"drop_threshold": 0.5, "window": 30}' \
-    --n-problems 20 \
-    --output-dir outputs/my_run
+    --strategy-kwargs '{"drop_threshold": 0.1, "window": 30}' \
+    --n-problems 1 \
+    --output-dir outputs/my_run \
+    --verbose
 ```
 
 Runs the chosen strategy **and** a no-intervention baseline on the same problems, then
@@ -108,6 +109,6 @@ The engine and CLI pick it up automatically.
 ## Sweeps (cluster)
 
 ```bash
-python scripts/submit_intervention_sweep3.py --benchmark aime24 --dry-run   # preview jobs
-python scripts/collect_sweep_results.py --sweep-dir outputs/sweep3_aime24   # rank results
+python scripts/submit_intervention_sweep.py --benchmark arithmetic_stress_test --dry-run   # preview jobs
+python scripts/collect_sweep_results.py --sweep-dir outputs/sweep_arithmetic_stress_test   # rank results
 ```

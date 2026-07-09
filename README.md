@@ -36,10 +36,11 @@ Full guide: [`src/interventions/README.md`](src/interventions/README.md). Quick 
 
 ```bash
 python scripts/run_intervention.py \
-    --benchmark aime24 \
+    --benchmark arithmetic_stress_test \
     --model Qwen/Qwen3-4B-Thinking-2507 \
     --strategy drop_detect --metric sc \
-    --n-problems 20
+    --n-problems 1 \
+    --verbose
 ```
 
 To run this at scale (grids of strategies × metrics × benchmarks on the cluster) and turn the results into figures, see the **run/sweep** and **aggregate & visualize** stages in Part 2.
@@ -65,10 +66,10 @@ python scripts/generate_samples_batch.py
 
 ```bash
 # Baselines (no DTR/intervention selection) on multiple pre-generated samples
-python scripts/run_baselines.py  --samples-file <dir>/generated_samples.jsonl --benchmark aime24
+python scripts/run_baselines.py  --samples-file <dir>/generated_samples.jsonl --benchmark arithmetic_stress_test
 
 # Think@n / DTR selection + accuracy
-python scripts/run_think_at_n.py --output-dir outputs/aime_think_at_n
+python scripts/run_think_at_n.py --output-dir outputs/arithmetic_think_at_n
 
 # Sweep a grid of intervention configs as PBS jobs (all 8 benchmarks)
 python scripts/submit_intervention_sweep.py
@@ -85,7 +86,7 @@ python scripts/submit_intervention_sweep.py
 
 ```bash
 # Collect + rank every completed run in a sweep directory
-python scripts/collect_sweep_results.py --sweep-dir outputs/sweep_gpqa_diamond
+python scripts/collect_sweep_results.py --sweep-dir outputs/sweep_arithmetic_stress_test
 
 # Cross-dataset strategy-family analysis → heatmaps + summary CSVs
 python scripts/analyze_cross_dataset.py --out-dir outputs/analysis

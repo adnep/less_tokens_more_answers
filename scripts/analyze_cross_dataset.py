@@ -192,9 +192,9 @@ def _draw_heatmap(ax, data, dataset_labels, value_fmt, cmap, cbar_label, title,
     im = ax.imshow(data, cmap=cmap, vmin=-vmax, vmax=vmax, aspect="auto")
 
     ax.set_xticks(range(len(dataset_labels)))
-    ax.set_xticklabels(dataset_labels, rotation=25, ha="right", fontsize=9)
+    ax.set_xticklabels(dataset_labels, rotation=25, ha="right", fontsize=11)
     ax.set_yticks(range(len(FAMILY_ORDER)))
-    ax.set_yticklabels(FAMILY_ORDER, fontsize=10)
+    ax.set_yticklabels(FAMILY_ORDER, fontsize=11)
 
     for fi in range(data.shape[0]):
         for di in range(data.shape[1]):
@@ -202,10 +202,10 @@ def _draw_heatmap(ax, data, dataset_labels, value_fmt, cmap, cbar_label, title,
             is_mean = mean_col and di == data.shape[1] - 1
             if not np.isnan(v):
                 ax.text(di, fi, value_fmt(v), ha="center", va="center",
-                        fontsize=8, fontweight="bold" if is_mean else "normal",
+                        fontsize=10, fontweight="bold" if is_mean else "normal",
                         color="black" if abs(v) < vmax * 0.7 else "white")
             else:
-                ax.text(di, fi, "—", ha="center", va="center", fontsize=9, color="#aaa")
+                ax.text(di, fi, "—", ha="center", va="center", fontsize=11, color="#aaa")
 
     if mean_col:
         sep = data.shape[1] - 1.5
@@ -216,8 +216,8 @@ def _draw_heatmap(ax, data, dataset_labels, value_fmt, cmap, cbar_label, title,
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="3%", pad=0.1)
     cbar = ax.get_figure().colorbar(im, cax=cax)
-    cbar.set_label(cbar_label, fontsize=9)
-    ax.set_title(title, fontsize=11, fontweight="bold")
+    cbar.set_label(cbar_label, fontsize=11)
+    ax.set_title(title, fontsize=13, fontweight="bold")
 
 
 def plot_heatmaps(best: dict, dataset_order: list[str], out_path: Path):
