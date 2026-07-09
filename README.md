@@ -46,7 +46,7 @@ To run this at scale (grids of strategies × metrics × benchmarks on the cluste
 
 ## Part 2 — Scripts: the experiment & analysis pipeline
 
-Everything in `scripts/` is a CLI entrypoint. Run any of them with `--help` for full options. The scripts fall into five pipeline stages — generate → run/sweep → aggregate & visualize → DTR replication → logit lens inspection. Sample generation and DTR are config-driven via `configs/default.yaml` (model, DTR `gamma`/`rho`, think@n `n`/`eta`). Cluster submission targets Metacentrum (PBS / `qsub`).
+Everything in `scripts/` is a CLI entrypoint. Run any of them with `--help` for full options. The scripts fall into five pipeline stages: generate, run/sweep, aggregate & visualize, DTR replication, logit lens inspection. Sample generation and DTR are config-driven via `configs/default.yaml` (model, DTR `gamma`/`rho`, think@n `n`/`eta`). Cluster submission targets Metacentrum (PBS / `qsub`).
 
 ### 1. Generate samples
 
@@ -59,7 +59,7 @@ python scripts/generate_samples_batch.py
 | Script | What it does |
 |---|---|
 | `generate_samples_batch.py` | Generate _n_ samples/problem with vLLM, saved incrementally. |
-| `submit_generate_job.sh` | PBS batch jobs for generation on Metacentrum . |
+| `submit_generate_job.sh` | PBS batch jobs for generation on Metacentrum. |
 
 ### 2. Run & sweep experiments
 
@@ -79,7 +79,7 @@ python scripts/submit_intervention_sweep.py
 | `run_intervention.py` | Single intervention run (see Part 1 quick-start). |
 | `run_baselines.py` | maj@n / pass@n baselines without DTR selection. |
 | `run_think_at_n.py` | Think@n / DTR sample selection + accuracy. |
-| `submit_intervention_sweep.py` | Submit grids of intervention experiments as PBS jobs. — all 8 benchmarks. |
+| `submit_intervention_sweep.py` | Submit grids of intervention experiments as PBS jobs — all 8 benchmarks. |
 
 ### 3. Aggregate & visualize sweep results
 
@@ -91,7 +91,7 @@ python scripts/collect_sweep_results.py --sweep-dir outputs/sweep_gpqa_diamond
 python scripts/analyze_cross_dataset.py --out-dir outputs/analysis
 
 # Per-dataset accuracy-vs-tokens Pareto plots
-python scripts/plot_pareto.py --sweep-dir outputs/sweep3_*
+python scripts/plot_pareto.py --sweep-dir outputs/sweep_*
 ```
 
 | Script | What it does |
@@ -103,8 +103,7 @@ python scripts/plot_pareto.py --sweep-dir outputs/sweep3_*
 
 ### 4. DTR replication & confidence analysis
 
-Reproduces the Deep-Thinking-Ratio metric from [https://arxiv.org/abs/2602.13517](*"Think Deep, Not Just Long: Measuring LLM Reasoning Effort via Deep-Thinking Tokens
-"*) and the confidence-signal analyses.
+Reproduces the Deep-Thinking-Ratio metric from [*"Think Deep, Not Just Long: Measuring LLM Reasoning Effort via Deep-Thinking Tokens"*](https://arxiv.org/abs/2602.13517) and the confidence-signal analyses.
 
 ```bash
 # Single-problem DTR/JSD heatmap (verifies the pipeline end-to-end)
@@ -132,7 +131,7 @@ streamlit run scripts/dtr_explorer.py
 
 | Script | What it does |
 |---|---|
-| `train_tuned_lens.py` | Train tuned-lens (to compare with the logit lens) translators for Qwen3-4B-Thinking. Implemented according to paper [https://arxiv.org/abs/2303.08112](*"Eliciting Latent Predictions from Transformers with the Tuned Lens"*)  |
+| `train_tuned_lens.py` | Train tuned-lens (to compare with the logit lens) translators for Qwen3-4B-Thinking. Implemented according to paper [*"Eliciting Latent Predictions from Transformers with the Tuned Lens"*](https://arxiv.org/abs/2303.08112)  |
 | `run_logit_lens_sanity.py` | Sanity-check that the logit lens works on Qwen3-4B-Thinking. |
 
 
