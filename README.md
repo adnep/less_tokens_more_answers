@@ -113,7 +113,7 @@ python scripts/compute_dtr_single.py --model Qwen/Qwen3-4B-Thinking-2507
 # Binned DTR–accuracy correlation
 python scripts/dtr_binned_correlation.py --results <dir>/results.json --bins 5
 
-# Interactive explorer
+# Interactive explorer implemented in Streamlit
 streamlit run scripts/dtr_explorer.py
 ```
 

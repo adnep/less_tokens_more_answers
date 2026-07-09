@@ -71,17 +71,18 @@ from src.interventions.metrics import get_metric
 from src.interventions.strategies import get_strategy
 from src.interventions.engine import InterventionEngine
 
-helper   = Qwen3Helper(local_path="/path/to/Qwen3-4B-Thinking-2507")
+helper   = Qwen3Helper()
 metric   = get_metric("sc")
 strategy = get_strategy("drop_detect", drop_threshold=0.5, window=30)
 
 engine = InterventionEngine(
     helper, metric, strategy,
-    max_backtracks=5,
+    max_backtracks=10,
     checkpoint_interval=128,   # KV-cache checkpoint every 128 tokens
     offload_to_cpu=True,       # keep VRAM free
 )
 
+prompt_text = "please put answer in \\boxed{answer}. what is 9 + 9?"
 result = engine.generate(prompt_text, answer_type="integer")
 print(result.extracted_answer, result.n_backtracks)
 ```

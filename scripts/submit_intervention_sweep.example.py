@@ -2,6 +2,15 @@
 """
 Submit backtracking sweep3 — all 8 benchmarks, incl. z_score_sc metric.
 
+EXAMPLE / TEMPLATE. The cluster-specific constants below are read from
+environment variables (with sensible fallbacks) so no personal paths or email
+are committed. Copy to submit_intervention_sweep3.py and either export the vars
+or hard-code your own values:
+    export CLUSTER_HOME=/storage/<CLUSTER>/home/<USERNAME>
+    export PBS_EMAIL=you@example.com
+    export MODEL_PATH=Qwen/Qwen3-4B-Thinking-2507   # or a local snapshot path
+    set YOUR_ENV properly too!!
+
 Usage
 -----
     python scripts/submit_intervention_sweep3.py --benchmark distinct_char --dry-run
@@ -34,14 +43,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # ── Cluster constants ─────────────────────────────────────────────────────────
 
-HOME       = "/storage/praha1/home/adnep"
-WORK_DIR   = f"{HOME}/deep-thinking-replication"
-MODEL      = (
-    f"{HOME}/hf_cache/hub/models--Qwen--Qwen3-4B-Thinking-2507"
-    f"/snapshots/768f209d9ea81521153ed38c47d515654e938aea"
-)
-PYTHON_ENV = f"{HOME}/mainenv/bin/activate"
-EMAIL      = "pendasmajljaj@gmail.com"
+# Fill these in via environment variables, or replace the fallbacks with your own.
+HOME       = os.environ.get("CLUSTER_HOME", "/storage/<CLUSTER>/home/<USERNAME>")
+WORK_DIR   = f"{HOME}/less_tokens_more_answers"
+# HF model id, or a local snapshot path under {HOME}/hf_cache for offline nodes.
+MODEL      = os.environ.get("MODEL_PATH", "Qwen/Qwen3-4B-Thinking-2507")
+PYTHON_ENV = f"{HOME}/<YOUR_ENV>/bin/activate"
+EMAIL      = os.environ.get("PBS_EMAIL", "you@example.com")
 
 # ── Fixed generation settings ─────────────────────────────────────────────────
 
@@ -60,14 +68,14 @@ GEN = dict(
 # max_tokens=8192 for word_len (p90=1366 tok; no point capping at 16384).
 
 BENCH = {
-    "arithmetic_stress_test": dict(n_problems=320, walltime="18:00:00", max_tokens=16384, output_prefix="sweep3"),
-    "char_occur":             dict(n_problems=200, walltime="15:00:00", max_tokens=16384, output_prefix="sweep3"),
-    "distinct_char":          dict(n_problems=200, walltime="15:00:00", max_tokens=16384, output_prefix="sweep3"),
-    "word_len":               dict(n_problems=200, walltime="15:00:00",  max_tokens=16384,  output_prefix="sweep3"),
-    "substring_occur":        dict(n_problems=200, walltime="15:00:00", max_tokens=16384, output_prefix="sweep3"),
-    "hmmt2025":               dict(n_problems=50,  walltime="12:00:00", max_tokens=16384, output_prefix="sweep3"),
-    "aime24":                 dict(n_problems=50,  walltime="14:00:00", max_tokens=16384, output_prefix="sweep3"),
-    "gpqa_diamond":           dict(n_problems=50,  walltime="12:00:00", max_tokens=16384, output_prefix="sweep3"),
+    "arithmetic_stress_test": dict(n_problems=320, walltime="18:00:00", max_tokens=16384, output_prefix="sweep"),
+    "char_occur":             dict(n_problems=200, walltime="15:00:00", max_tokens=16384, output_prefix="sweep"),
+    "distinct_char":          dict(n_problems=200, walltime="15:00:00", max_tokens=16384, output_prefix="sweep"),
+    "word_len":               dict(n_problems=200, walltime="15:00:00",  max_tokens=16384,  output_prefix="sweep"),
+    "substring_occur":        dict(n_problems=200, walltime="15:00:00", max_tokens=16384, output_prefix="sweep"),
+    "hmmt2025":               dict(n_problems=50,  walltime="12:00:00", max_tokens=16384, output_prefix="sweep"),
+    "aime24":                 dict(n_problems=50,  walltime="14:00:00", max_tokens=16384, output_prefix="sweep"),
+    "gpqa_diamond":           dict(n_problems=50,  walltime="12:00:00", max_tokens=16384, output_prefix="sweep"),
 }
 
 

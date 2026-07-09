@@ -5,3 +5,10 @@ outputs
 datasets
 tests
 *.tex
+
+# Personal cluster/PBS job scripts
+scripts/submit_generate_job*.sh
+scripts/submit_intervention_sweep*.py
+scripts/submit_backtracking_sweep*.py
+!scripts/*.example.sh
+!scripts/*.example.py
