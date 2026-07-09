@@ -1,4 +1,4 @@
-# Deep-Thinking Replication & Intervention Framework
+# Intervention Framework & Experimental Work
 
 Master's thesis code, in two parts:
 
