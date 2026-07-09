@@ -1,0 +1,320 @@
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 4. Apply in order: +5, +4, +2, *9, +7. What is the final result?", "answer": 142}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 2. Apply in order: +2, +4, *1, *4, *9. What is the final result?", "answer": 288}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 14. Apply in order: +8, *5, +3, *7, -5. What is the final result?", "answer": 786}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 5. Apply in order: +6, +2, -2, -6, *5. What is the final result?", "answer": 25}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 2. Apply in order: *8, *2, -2, *5, *6. What is the final result?", "answer": 900}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 19. Apply in order: +2, +4, -2, +2, -5. What is the final result?", "answer": 20}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 15. Apply in order: *6, +6, -4, *5, *2. What is the final result?", "answer": 920}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 20. Apply in order: *3, *4, +8, -5, *9. What is the final result?", "answer": 2187}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 8. Apply in order: *6, +4, +6, -5, +4. What is the final result?", "answer": 57}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 19. Apply in order: *6, +8, -8, +5, +4. What is the final result?", "answer": 123}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 18. Apply in order: *5, *7, *7, -4, +9. What is the final result?", "answer": 4415}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 16. Apply in order: +1, +3, *3, *7, *2. What is the final result?", "answer": 840}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 13. Apply in order: -8, *5, *1, *2, *9. What is the final result?", "answer": 450}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 9. Apply in order: *6, +5, -3, -1, *5. What is the final result?", "answer": 275}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 17. Apply in order: +9, +5, *9, *4, +6. What is the final result?", "answer": 1122}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 6. Apply in order: *9, +6, -1, +6, -4. What is the final result?", "answer": 61}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 2. Apply in order: +2, +8, +9, +3, *8. What is the final result?", "answer": 192}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 18. Apply in order: +5, *7, +9, *4, *5. What is the final result?", "answer": 3400}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 13. Apply in order: *6, -9, -2, +4, +6. What is the final result?", "answer": 77}
+{"category": "state_seq", "difficulty": 5, "problem": "Start with 1. Apply in order: *9, +4, +2, *1, +2. What is the final result?", "answer": 17}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 2. Apply in order: -2, *4, -8, +9, +8, +8, -4, +2, *7, -7. What is the final result?", "answer": 98}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 14. Apply in order: -1, *2, +7, *6, +4, +4, *8, +7, +5, -4. What is the final result?", "answer": 1656}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 3. Apply in order: -9, +1, *9, +2, +3, -8, -4, -1, +7, +7. What is the final result?", "answer": -39}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 9. Apply in order: -5, -9, *8, +4, -4, +9, +6, +1, *8, *9. What is the final result?", "answer": -1728}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 6. Apply in order: +9, +3, +2, *4, -2, *4, *1, *2, -9, -5. What is the final result?", "answer": 610}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 7. Apply in order: *6, +5, -3, *5, -6, +1, -2, +9, +9, -3. What is the final result?", "answer": 228}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 12. Apply in order: +4, -5, +8, *5, *9, +9, -2, +5, +2, *9. What is the final result?", "answer": 7821}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 5. Apply in order: -5, *4, *6, +5, *8, -1, +7, -1, +6, +5. What is the final result?", "answer": 56}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 6. Apply in order: *8, *7, *1, +2, *3, *1, -9, +7, +1, -6. What is the final result?", "answer": 1007}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 2. Apply in order: -4, *4, *2, -9, -3, +3, +7, +3, *6, -4. What is the final result?", "answer": -94}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 9. Apply in order: +2, -1, -4, +8, -5, +4, +4, -6, -2, -6. What is the final result?", "answer": 3}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 17. Apply in order: -9, -1, +5, +5, +2, *7, -6, -9, +7, *4. What is the final result?", "answer": 500}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 9. Apply in order: +7, +9, *4, -7, +6, *6, *2, *5, *5, *7. What is the final result?", "answer": 207900}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 11. Apply in order: -5, *3, +7, *7, *3, *5, -9, +5, -4, -6. What is the final result?", "answer": 2611}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 15. Apply in order: -8, *4, *8, *3, *2, -9, *6, +4, *5, +4. What is the final result?", "answer": 40074}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 5. Apply in order: +1, +8, *2, -7, *4, *7, -7, +3, *1, +7. What is the final result?", "answer": 591}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 8. Apply in order: +9, -1, *4, +8, +8, *9, *6, -9, -9, -3. What is the final result?", "answer": 4299}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 16. Apply in order: -5, +5, *8, *4, -8, +5, +5, -6, *2, +3. What is the final result?", "answer": 1019}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 8. Apply in order: -3, *4, +7, -6, *8, -1, +7, -1, *7, -1. What is the final result?", "answer": 1210}
+{"category": "state_seq", "difficulty": 10, "problem": "Start with 12. Apply in order: -7, -9, *9, *4, -4, -7, -1, -6, *7, *3. What is the final result?", "answer": -3402}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 15. Apply in order: +9, +7, *1, +7, +8, +1, -7, -4, -6, -7, -7, -2, -1, *9, +6, +2, *1, +4, +1, *3. What is the final result?", "answer": 390}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 8. Apply in order: +8, *2, *4, -5, -3, *2, +5, +1, -7, -4, +4, +5, *2, *1, -9, -6, +9, *6, +7, -2. What is the final result?", "answer": 2897}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 14. Apply in order: -8, *3, -3, *9, *5, *9, -8, -5, -4, +5, -4, -7, -1, -6, +8, +6, -6, -5, *1, *4. What is the final result?", "answer": 24192}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 3. Apply in order: +7, -9, +8, *8, -1, +5, +7, *4, -6, -9, *6, -9, -6, *8, -5, -4, +4, -2, *9, *3. What is the final result?", "answer": 407403}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 7. Apply in order: +8, -9, *5, +4, -4, -3, -1, *9, +5, +1, *5, *3, *8, +1, *5, -8, -6, +1, -8, +2. What is the final result?", "answer": 143986}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 13. Apply in order: -2, *1, +3, *5, +4, +9, -4, *7, -8, -7, -1, *2, +4, -2, +4, +9, +3, +7, -8, -1. What is the final result?", "answer": 1090}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 8. Apply in order: -5, *8, +4, -4, -2, *4, *3, -3, +1, +5, *5, -2, -5, *7, -9, *8, -2, *1, -6, *5. What is the final result?", "answer": 371440}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 1. Apply in order: +4, *1, *5, *1, +8, *8, -3, *7, *8, +8, -7, -6, *2, +6, -8, -7, *1, -2, -5, -2. What is the final result?", "answer": 29204}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 13. Apply in order: *1, *9, -7, +4, *6, *8, *8, +4, -9, +5, -8, +1, *4, *3, -9, +9, -2, +2, -2, *3. What is the final result?", "answer": 1575678}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 16. Apply in order: *5, *5, -8, -4, -9, +7, +9, *3, +5, -6, *5, +5, *5, *8, +8, *8, -6, *9, -8, -4. What is the final result?", "answer": 17064510}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 8. Apply in order: *7, +7, +6, *8, *7, -3, -1, +9, *6, +8, +9, -1, *3, -3, +8, -6, *7, *2, -9, -6. What is the final result?", "answer": 975631}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 16. Apply in order: *1, *2, +5, +2, -2, *2, -3, *5, +1, -1, -6, -7, +4, *7, *3, +3, +7, *4, -3, +8. What is the final result?", "answer": 29109}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 9. Apply in order: -5, *1, -5, *9, +2, -6, *5, *7, *5, -5, +7, -2, +7, *6, *5, *5, +7, -1, *1, *8. What is the final result?", "answer": -2721552}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 10. Apply in order: +6, +4, *5, *3, *2, *1, -8, +6, *3, +5, -7, +4, +9, -9, *5, +5, -5, *6, +8, +3. What is the final result?", "answer": 53891}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 8. Apply in order: *7, *6, +7, +5, *2, -6, *5, *7, *6, +4, -1, *9, -4, *2, *8, *5, *7, +3, +1, -8. What is the final result?", "answer": 730308876}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 4. Apply in order: +4, *3, -8, -9, -3, -2, -7, -1, *6, +8, -4, -2, *6, *6, +7, -4, +8, +4, *1, +6. What is the final result?", "answer": -1203}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 8. Apply in order: +4, +9, +4, +6, +1, -3, +9, -3, +1, +1, -4, *6, +3, -1, +7, *2, *2, -8, -9, *2. What is the final result?", "answer": 1622}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 15. Apply in order: *4, *1, *9, -8, *1, +8, -7, *2, -8, +2, -3, +3, -9, *6, -9, -8, *7, +2, *9, *4. What is the final result?", "answer": 1584900}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 14. Apply in order: -4, -6, -7, -2, -7, -5, -3, *8, +2, +2, -2, *6, +9, +9, *6, *2, -6, *7, *1, -5. What is the final result?", "answer": -78167}
+{"category": "state_seq", "difficulty": 20, "problem": "Start with 12. Apply in order: +9, +3, *8, +2, -9, -2, -4, -9, *9, +5, +3, -5, -6, +3, +7, +3, *1, +9, +7, -8. What is the final result?", "answer": 1548}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 11. Apply in order: +6, -6, *2, +3, +1, *2, -8, *7, -8, -5, +9, +6, -2, -8, *5, +4, -1, +4, -4, +5, -6, +1, -7, +3, -9, *4, *9, *6, +7, *1, -1, -2, -7, *7, *7, -2, -1, -3, *8, *6. What is the final result?", "answer": 756960336}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 3. Apply in order: -2, +7, *7, *2, -5, *6, +6, +2, *2, *9, +6, -3, +2, +5, +3, *3, *2, +8, -8, *6, *6, +8, +8, -5, -1, -9, +5, -8, +1, -5, +2, *9, -8, *9, *1, -4, -8, *3, +8, +6. What is the final result?", "answer": 614790734}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 3. Apply in order: *3, +4, *8, -9, *3, -6, -7, -6, *1, *6, +6, +9, *7, -5, *3, -2, *3, -5, *7, +2, -9, -6, +9, +7, *6, +6, -3, +6, -4, +3, +2, -2, *9, *9, +6, *3, *7, +3, +3, *8. What is the final result?", "answer": 57975252096}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 2. Apply in order: -6, *4, -5, *8, +9, +5, -4, -8, -5, -9, *7, +4, *3, -1, *8, -9, +9, +5, +3, -8, *3, -2, +8, -1, -1, -9, -4, -2, -4, +6, +6, +3, +5, -3, *8, -1, +1, -4, +9, *9. What is the final result?", "answer": -6512643}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 14. Apply in order: +5, +5, +1, +7, *8, +2, -9, +9, *4, *3, -7, +6, +7, +2, *6, +9, *9, *9, +7, -1, *7, -5, *1, -2, -4, *2, *6, +1, -9, -3, *8, *8, *3, +2, *8, +5, +1, +1, -5, *7. What is the final result?", "answer": 1363130958462}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 18. Apply in order: -5, +4, -6, +6, -2, -7, -8, -6, +8, *8, -9, -2, *7, +7, *3, *5, -2, +6, *5, -8, *7, +8, -8, +6, *7, -1, +7, -9, *3, +3, *8, +3, +4, *6, -7, *1, *3, *8, -6, -2. What is the final result?", "answer": 535604800}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 19. Apply in order: +9, -7, -5, +2, +3, -9, -9, +5, -8, +5, *8, +2, +2, -3, *8, +6, *6, *2, *9, -5, +3, -9, +2, +3, +8, +6, *6, -9, +2, +5, -8, *7, -2, +6, *2, -8, *9, -3, *3, +7. What is the final result?", "answer": 81825658}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 17. Apply in order: +2, *3, -3, +6, *4, -9, -2, -4, *9, -3, *5, *9, +9, *3, *3, +6, *1, +2, +5, *4, *7, *1, -9, -5, -4, *7, -8, +1, +8, -8, -4, -3, -6, *6, -3, -9, *2, -4, -2, -8. What is the final result?", "answer": 1926295618}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 8. Apply in order: +2, +5, -7, +3, -6, +3, -9, -8, -8, +2, -9, -4, +6, +1, -8, *8, -9, +2, -3, -6, -6, +7, +9, +6, *5, +7, *8, *5, *2, +2, -6, -9, -3, +9, -9, +1, +3, *6, -9, -3. What is the final result?", "answer": -553524}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 20. Apply in order: *3, -6, +7, *5, *6, *9, *8, *5, -1, -6, *2, -5, *1, *8, -4, *1, *8, +9, *7, +4, +2, +1, -6, -3, -4, -9, *8, *1, *3, *4, *6, *8, *7, -3, -9, -9, -5, *8, +4, -9. What is the final result?", "answer": 152319570149163}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 10. Apply in order: +5, -4, *8, -8, -9, *5, -2, *9, -7, -3, -1, -2, -8, *5, *8, +4, *5, *5, +2, *4, +1, *9, +4, +2, -6, *8, +3, +9, +7, *8, -4, -6, -1, +4, *1, +7, +1, -8, +5, +1. What is the final result?", "answer": 7271659735}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 10. Apply in order: *2, -5, -9, *8, +9, -5, +2, -3, *8, *5, *3, +6, -4, +7, -9, -2, -2, +3, -6, +1, -7, +8, -6, -1, -6, *4, +2, -5, +7, *9, *5, *2, *5, -4, +3, -3, -6, -9, -9, *4. What is the final result?", "answer": 43941488}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 8. Apply in order: *2, *8, *6, +2, +9, *4, *9, +3, -9, -2, *4, *8, +9, -1, -3, *7, -1, *8, *5, *1, -5, +4, *2, +7, -2, *1, +8, +5, -3, +7, -7, -7, -2, *9, +6, +3, *7, *3, *4, +1. What is the final result?", "answer": 379820330821}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 10. Apply in order: -9, -9, -4, +8, -3, -4, *2, +7, *1, +4, +2, *1, -1, +1, -8, +9, +1, +9, -4, *6, *6, +5, +9, +7, -5, +9, *3, *7, *8, +6, *7, *6, *7, -3, -7, +9, -4, +5, *3, -1. What is the final result?", "answer": -6958981}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 18. Apply in order: -7, *9, +7, +5, +6, *2, -6, +9, *4, +5, -1, +4, *9, +8, +6, -1, +4, *2, *8, +4, -4, *6, -7, -9, *6, -5, -9, -8, +8, -4, -6, -1, *4, *3, +5, *7, -3, +6, +7, *4. What is the final result?", "answer": 1668433380}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 16. Apply in order: *6, -8, *8, -3, *6, +3, *9, -3, *1, *1, +1, +7, +4, +3, +4, *8, -1, *8, *8, +1, *9, -1, +9, *5, *5, +9, *7, +2, +9, +4, +9, -6, -7, +6, -8, *4, *4, -2, *1, +7. What is the final result?", "answer": 488960688757}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 13. Apply in order: -9, -1, *1, *3, +8, -6, *2, *1, +4, *8, -1, +5, *1, +6, +4, *3, *7, +5, +4, *7, *9, -7, *3, *2, *6, +2, -4, +6, *7, -1, *5, -8, +6, *7, -3, *7, +5, +2, +5, +7. What is the final result?", "answer": 18167989355}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 5. Apply in order: *7, -6, +2, +5, -6, -2, +2, +7, -9, *9, -2, +2, -9, +6, -1, -7, -2, *9, +9, +7, +3, -5, -8, +2, +7, -7, -8, +6, -4, *8, *4, -2, +5, +7, -7, -8, -7, *3, -6, *4. What is the final result?", "answer": 826584}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 16. Apply in order: -3, -6, -8, *4, -7, -7, -2, *4, *9, +9, +8, *4, -5, *2, -8, +5, +5, *3, *7, -2, -8, *7, *9, *7, *1, -9, *2, +4, *6, +1, *7, -7, +1, +5, +9, *9, *4, -6, -8, *9. What is the final result?", "answer": -1419651029970}
+{"category": "state_seq", "difficulty": 40, "problem": "Start with 5. Apply in order: -1, -2, -7, +2, *3, -5, -8, +9, -6, -2, -8, -2, -1, *2, +6, *2, *3, *4, *3, *3, -9, -8, +7, *3, +7, -1, *4, -7, -1, *4, +5, *2, *2, *3, -6, +8, +5, *8, *6, *7. What is the final result?", "answer": -2426273808}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 96915 - 57924", "answer": 38991}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 91251 - 34125", "answer": 57126}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 96627 - 86692", "answer": 9935}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 28274 + 22579", "answer": 50853}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 68876 - 50723", "answer": 18153}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 67721 + 90340", "answer": 158061}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 84279 + 78819", "answer": 163098}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 85807 + 83613", "answer": 169420}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 71339 - 7451", "answer": 63888}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 96292 - 33095", "answer": 63197}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 98254 + 49481", "answer": 147735}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 60422 + 32536", "answer": 92958}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 94667 - 11684", "answer": 82983}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 57759 - 1751", "answer": 56008}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 63637 - 45458", "answer": 18179}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 97500 + 17012", "answer": 114512}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 6324 + 24154", "answer": 30478}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 20643 + 61103", "answer": 81746}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 29387 - 516", "answer": 28871}
+{"category": "carry", "difficulty": 5, "problem": "Compute exactly: 71361 + 11554", "answer": 82915}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 3269731121 - 2218909275", "answer": 1050821846}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 6565234138 + 9994043898", "answer": 16559278036}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 6403761379 - 1805526965", "answer": 4598234414}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 2710910430 - 684866618", "answer": 2026043812}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 2414183285 + 6914630316", "answer": 9328813601}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 9904210202 - 7588425241", "answer": 2315784961}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 7850792524 - 564814917", "answer": 7285977607}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 9138000307 + 5622086353", "answer": 14760086660}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 5419518023 + 8061744518", "answer": 13481262541}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 5349493759 + 7383206038", "answer": 12732699797}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 506413836 + 7024103865", "answer": 7530517701}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 1918261990 + 6234456557", "answer": 8152718547}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 5618537474 - 1329121277", "answer": 4289416197}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 5680442067 - 1249035213", "answer": 4431406854}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 8317121003 - 2365199410", "answer": 5951921593}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 9667066253 - 3721510702", "answer": 5945555551}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 4472099934 + 7687014626", "answer": 12159114560}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 8380657875 + 9856420593", "answer": 18237078468}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 4078593213 + 3480396522", "answer": 7558989735}
+{"category": "carry", "difficulty": 10, "problem": "Compute exactly: 5590599293 + 7842701039", "answer": 13433300332}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 87059325250029218515 - 69154522675289539264", "answer": 17904802574739679251}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 55215704331541006762 - 42209690295939172513", "answer": 13006014035601834249}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 76586179327104054115 - 26218159970629620153", "answer": 50368019356474433962}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 68844431069872050614 + 97310324171467741862", "answer": 166154755241339792476}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 65270477434902115869 + 38068687937416089899", "answer": 103339165372318205768}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 85487099861622999119 - 72233206163294511686", "answer": 13253893698328487433}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 53074505444713247546 - 48564679970246299606", "answer": 4509825474466947940}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 13736785082148628902 + 33030705345786103579", "answer": 46767490427934732481}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 79855241406029333346 + 80072290349446657437", "answer": 159927531755475990783}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 89691085899441715454 - 44328309652074466609", "answer": 45362776247367248845}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 93538758428241724825 - 13534655494717099917", "answer": 80004102933524624908}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 81684602235697252175 + 25007432927129666676", "answer": 106692035162826918851}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 83505830033542168942 - 10447898562575326033", "answer": 73057931470966842909}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 67618472304618499261 - 23098215064890901001", "answer": 44520257239727598260}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 91411739348356420873 + 75300119721811437447", "answer": 166711859070167858320}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 20455611002255794155 + 21667467621202169797", "answer": 42123078623457963952}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 88916375628900287721 - 65902771670145089935", "answer": 23013603958755197786}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 53540838663177971775 - 17016608801994883755", "answer": 36524229861183088020}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 37589975711305548851 + 2726149331637351609", "answer": 40316125042942900460}
+{"category": "carry", "difficulty": 20, "problem": "Compute exactly: 99586693465472269848 - 77982708086978292216", "answer": 21603985378493977632}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 8333945228851587996846081062003424420438 + 571983863840666580043973598933472122816", "answer": 8905929092692254576890054660936896543254}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 5543987801573993056164840858877043581128 - 4842294057202590947985158328182688615335", "answer": 701693744371402108179682530694354965793}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 1336138612075011024819346676650618091901 + 5814491476607283268424508821009968814353", "answer": 7150630088682294293243855497660586906254}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 8222394312908781414139755231491357759492 + 9955620533645257775478129142834110809969", "answer": 18178014846554039189617884374325468569461}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 848872563942788165803928272299275037314 + 5303856770051844989266591846386557790827", "answer": 6152729333994633155070520118685832828141}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 9041379772369292984257991366210388629127 - 1843222591365177739260302992280920242869", "answer": 7198157181004115244997688373929468386258}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 9088117298068650863765991624731498643009 + 8180635651269448695946368872588744956213", "answer": 17268752949338099559712360497320243599222}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 2138658902601279611435190669849027703843 + 988392053021465669380118489554393769042", "answer": 3127050955622745280815309159403421472885}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 1818451848947697357790714163356588043416 + 5182755394237333433339521117908075957947", "answer": 7001207243185030791130235281264664001363}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 8463920867808562718750036915594284347955 + 2763655647292931438663227026728857448906", "answer": 11227576515101494157413263942323141796861}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 9961125355449647598762202341326111780068 - 2034717545588450615939982455877169472256", "answer": 7926407809861196982822219885448942307812}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 1149216433472282005577848728299796884578 + 3174564240082547807740649308536866326634", "answer": 4323780673554829813318498036836663211212}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 3894484631224179749735020802144270312073 + 5647570512046187234601367303718376452088", "answer": 9542055143270366984336388105862646764161}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 7435031365024916300979251327195005281273 - 5857306524077848739285574982182744857086", "answer": 1577724840947067561693676345012260424187}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 959351863878294565118102203173109678994 - 539103717058650948014138113863383928861", "answer": 420248146819643617103964089309725750133}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 9576122868528975585566593983684577600490 - 8240433504888992107522459334419693157279", "answer": 1335689363639983478044134649264884443211}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 1940961055661390604805892583206799813646 + 2251790864168622783769389833146591166553", "answer": 4192751919830013388575282416353390980199}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 9042597927033521103924051477053833884879 + 2069804204394070164510463681579812387800", "answer": 11112402131427591268434515158633646272679}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 8457620555438404608432562168936392649578 - 2329832482629251881252056647423122099499", "answer": 6127788072809152727180505521513270550079}
+{"category": "carry", "difficulty": 40, "problem": "Compute exactly: 9330517289752677223306046333127975736609 - 6569998808177038860868034764472649082771", "answer": 2760518481575638362438011568655326653838}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((2 + 9) + 7)", "answer": 18}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((7 - 8) + 3)", "answer": 2}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((8 * 4) - 2)", "answer": 30}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((5 - 3) * 2)", "answer": 4}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((2 + 8) * 6)", "answer": 60}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((2 * 7) * 9)", "answer": 126}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((3 - 9) - 1)", "answer": -7}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((3 - 3) + 3)", "answer": 3}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((3 * 1) - 5)", "answer": -2}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((5 * 8) - 3)", "answer": 37}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((2 + 4) + 5)", "answer": 11}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((1 - 8) - 9)", "answer": -16}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((1 * 8) + 4)", "answer": 12}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((8 - 7) - 2)", "answer": -1}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((1 + 9) - 9)", "answer": 1}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((4 + 3) + 1)", "answer": 8}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((6 + 3) + 5)", "answer": 14}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((6 + 1) + 7)", "answer": 14}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((3 + 5) * 9)", "answer": 72}
+{"category": "nested", "difficulty": 2, "problem": "Evaluate exactly: ((3 - 6) + 2)", "answer": -1}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((5 - 6) - 2) - 9) + 5)", "answer": -7}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((8 + 2) * 5) - 9) - 9)", "answer": 32}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((4 * 4) * 1) + 9) + 8)", "answer": 33}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((5 - 6) - 9) * 6) + 8)", "answer": -52}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((9 * 8) - 3) * 4) * 5)", "answer": 1380}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((4 + 2) + 8) * 2) * 4)", "answer": 112}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((7 - 1) - 6) * 4) + 4)", "answer": 4}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((5 - 2) - 5) * 9) - 1)", "answer": -19}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((2 * 6) - 7) * 1) + 4)", "answer": 9}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((6 - 8) - 1) * 3) - 3)", "answer": -12}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((8 * 6) - 7) * 1) * 5)", "answer": 205}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((6 * 9) + 4) * 6) - 2)", "answer": 346}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((3 - 1) - 7) * 9) + 7)", "answer": -38}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((3 * 2) - 6) * 1) - 7)", "answer": -7}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((2 - 4) - 8) - 4) * 5)", "answer": -70}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((3 + 6) + 4) + 8) * 1)", "answer": 21}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((8 * 3) + 6) - 9) - 6)", "answer": 15}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((3 + 9) * 3) + 1) - 7)", "answer": 30}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((9 + 1) - 1) * 2) - 8)", "answer": 10}
+{"category": "nested", "difficulty": 4, "problem": "Evaluate exactly: ((((1 + 9) * 5) + 5) * 4)", "answer": 220}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((6 + 4) - 5) * 6) - 2) - 3) + 5)", "answer": 30}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((2 + 9) * 2) + 9) - 9) - 5) + 5)", "answer": 22}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((4 + 2) - 6) * 8) + 3) + 8) * 1)", "answer": 11}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((2 - 1) + 7) - 3) * 8) * 6) - 6)", "answer": 234}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((4 * 9) + 8) * 3) + 8) + 8) - 8)", "answer": 140}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((8 + 4) + 5) - 7) + 6) - 8) - 1)", "answer": 7}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((2 - 2) - 8) - 3) - 6) * 3) * 2)", "answer": -102}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((7 * 2) - 9) * 2) - 9) - 7) * 7)", "answer": -42}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((4 * 4) * 3) - 7) + 6) + 7) - 6)", "answer": 48}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((9 * 4) + 2) * 8) + 8) - 9) + 8)", "answer": 311}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((3 - 7) + 2) * 7) - 8) * 1) + 4)", "answer": -18}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((3 * 1) + 3) - 9) - 7) * 8) + 4)", "answer": -76}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((6 - 5) - 6) + 1) * 9) - 3) - 1)", "answer": -40}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((6 * 1) + 9) - 2) - 1) + 7) * 7)", "answer": 133}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((6 * 7) - 7) - 9) + 3) - 3) + 9)", "answer": 35}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((7 - 7) + 5) * 3) + 1) + 1) + 8)", "answer": 25}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((7 + 2) + 7) - 7) * 3) - 9) - 9)", "answer": 9}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((8 - 6) + 3) - 1) * 8) * 4) * 9)", "answer": 1152}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((5 - 9) * 6) + 1) * 8) * 6) + 8)", "answer": -1096}
+{"category": "nested", "difficulty": 6, "problem": "Evaluate exactly: ((((((2 + 9) - 8) * 2) * 2) + 8) * 2)", "answer": 40}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((9 * 5) * 1) - 9) + 8) - 9) - 6) - 6) - 5)", "answer": 18}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((3 + 5) * 5) + 8) * 3) * 1) * 5) * 1) - 8)", "answer": 712}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((2 + 9) + 5) - 3) * 5) - 5) + 2) * 3) * 3)", "answer": 558}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((8 - 3) - 4) - 3) * 1) - 2) + 3) - 7) - 4)", "answer": -12}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((8 * 3) + 6) + 5) + 1) + 8) - 8) - 8) * 9)", "answer": 252}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((4 - 7) - 5) + 9) - 1) - 8) - 6) * 1) + 9)", "answer": -5}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((6 - 5) - 5) - 2) - 7) - 4) * 4) * 6) * 3)", "answer": -1224}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((6 * 1) * 1) + 1) - 2) * 2) * 8) - 4) * 5)", "answer": 380}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((5 + 1) + 2) + 4) * 2) * 2) + 3) - 3) + 3)", "answer": 51}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((5 - 8) * 2) * 8) - 7) * 6) - 3) + 5) + 7)", "answer": -321}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((7 - 1) - 5) + 8) + 8) + 7) + 8) + 3) * 7)", "answer": 245}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((4 * 2) - 5) + 1) + 2) * 5) - 1) - 3) * 1)", "answer": 26}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((1 * 7) - 3) * 6) - 1) * 8) - 7) - 2) * 4)", "answer": 700}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((1 - 8) + 9) - 6) * 5) - 1) * 2) - 9) - 2)", "answer": -53}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((8 - 4) + 9) + 7) * 4) - 7) + 6) - 2) * 8)", "answer": 616}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((4 + 1) + 1) * 4) - 7) + 9) * 5) - 9) - 1)", "answer": 120}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((1 - 1) - 1) - 2) + 9) - 9) + 4) + 1) * 3)", "answer": 6}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((8 * 1) - 1) + 3) + 3) * 1) - 2) - 3) * 2)", "answer": 16}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((2 + 8) * 4) + 4) - 6) * 7) - 2) * 9) + 6)", "answer": 2382}
+{"category": "nested", "difficulty": 8, "problem": "Evaluate exactly: ((((((((4 + 3) - 2) + 5) + 7) + 6) * 3) - 4) * 1)", "answer": 65}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 3. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 65}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 2. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 33}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 10. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 289}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 7. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 193}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 3. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 65}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 1. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 8. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 225}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 2. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 33}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 1. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 1. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 3. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 65}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 2. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 33}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 10. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 289}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 5. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 129}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 7. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 193}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 8. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 225}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 3. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 65}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 4. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 97}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 3. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 65}
+{"category": "iterative", "difficulty": 5, "problem": "Start with 5. Repeat 5 times: multiply by 2 then subtract 1. What is the final result?", "answer": 129}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 9. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 8193}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 8. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 7169}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 7. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 6145}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 4. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 3073}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 3. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 2049}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 10. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 9217}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 1. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 10. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 9217}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 3. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 2049}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 8. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 7169}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 10. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 9217}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 2. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1025}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 5. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 4097}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 6. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 5121}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 7. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 6145}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 1. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 9. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 8193}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 4. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 3073}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 4. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 3073}
+{"category": "iterative", "difficulty": 10, "problem": "Start with 2. Repeat 10 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1025}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 9. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 8388609}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 2. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1048577}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 10. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 9437185}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 6. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 5242881}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 9. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 8388609}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 9. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 8388609}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 4. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 3145729}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 8. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 7340033}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 4. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 3145729}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 5. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 4194305}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 1. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 4. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 3145729}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 2. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1048577}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 3. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 2097153}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 8. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 7340033}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 8. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 7340033}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 3. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 2097153}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 3. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 2097153}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 1. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 20, "problem": "Start with 1. Repeat 20 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 6. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 5497558138881}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 5. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 4398046511105}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 4. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 3298534883329}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 7. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 6597069766657}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 5. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 4398046511105}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 6. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 5497558138881}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 10. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 9895604649985}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 8. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 7696581394433}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 1. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 2. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1099511627777}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 1. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 9. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 8796093022209}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 3. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 2199023255553}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 3. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 2199023255553}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 1. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 8. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 7696581394433}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 9. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 8796093022209}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 2. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1099511627777}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 2. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 1099511627777}
+{"category": "iterative", "difficulty": 40, "problem": "Start with 4. Repeat 40 times: multiply by 2 then subtract 1. What is the final result?", "answer": 3298534883329}
