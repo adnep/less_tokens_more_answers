@@ -134,9 +134,3 @@ streamlit run scripts/dtr_explorer.py
 |---|---|
 | `train_tuned_lens.py` | Train tuned-lens (to compare with the logit lens) translators for Qwen3-4B-Thinking. Implemented according to paper [*"Eliciting Latent Predictions from Transformers with the Tuned Lens"*](https://arxiv.org/abs/2303.08112)  |
 | `run_logit_lens_sanity.py` | Sanity-check that the logit lens works on Qwen3-4B-Thinking. |
-
-
-
-## Notes
-
-- generated experiment results appear in `outputs/` (not included in git because it is too large)

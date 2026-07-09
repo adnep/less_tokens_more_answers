@@ -1,23 +1,14 @@
-# Model / inference
 torch>=2.9.1
 transformers>=4.57.6
-accelerate>=1.13.0          # required by transformers for device_map model loading
+accelerate>=1.13.0
 datasets>=4.7.0
-vllm>=0.15.1                # batch offline sample generation
-
-# Numerics
+vllm>=0.15.1
 numpy>=2.2.6
 scipy>=1.17.1
-sympy>=1.14.0               # LaTeX answer parsing/equivalence in evaluation.voting
-
-# Data / config
+sympy>=1.14.0
 pandas>=2.3.3
 pyyaml>=6.0.3
-
-# Visualization / UI
 matplotlib>=3.10.8
 seaborn>=0.13.2
-streamlit>=1.55.0          # dtr_explorer interactive app
-
-# Utilities
+streamlit>=1.55.0
 tqdm>=4.67.3
