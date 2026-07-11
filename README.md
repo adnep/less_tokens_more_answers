@@ -19,6 +19,7 @@ src/
   visualization/  plotting
 scripts/          CLI entrypoints + cluster (PBS) job scripts
 configs/          default.yaml — DTR / generation hyperparameters
+datasets/         our generated arithmetic dataset
 ```
 
 ## Setup

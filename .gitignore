@@ -5,6 +5,7 @@ outputs
 datasets
 tests
 *.tex
+.DS_Store
 
 # Personal cluster/PBS job scripts
 scripts/submit_generate_job*.sh
